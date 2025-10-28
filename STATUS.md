@@ -8,11 +8,11 @@
 
 ## Quick Stats
 
-- **Total Articles**: 436
+- **Total Articles**: 1,697 (436 → 1,697 after multiple fetches)
 - **Sources**: arXiv (cs.AI, cs.LG, cs.CL, cs.CV)
 - **Lines of Code**: ~900
-- **Dependencies**: 7 core packages (added anthropic, numpy)
-- **Time Invested**: 10-14 hours (Phase 1: 5h, Phase 2: 5-9h)
+- **Dependencies**: 6 core packages (removed Click, added anthropic + numpy)
+- **Time Invested**: 11-15 hours (Phase 1: 5h, Phase 2: 6-10h)
 
 ---
 
@@ -27,7 +27,8 @@ mindscout show <id>         # ✅ Working
 mindscout read <id>         # ✅ Working
 mindscout unread <id>       # ✅ Working
 mindscout stats             # ✅ Working
-mindscout fetch             # ⚠️  Works but shows cosmetic error
+mindscout fetch             # ✅ Working (fixed!)
+mindscout fetch -c cs.CV    # ✅ Working
 
 # Phase 2 Commands (NEW!)
 mindscout process           # ✅ Working (requires ANTHROPIC_API_KEY)
@@ -51,12 +52,10 @@ mindscout find-by-topic <topic>  # ✅ Working
 
 ## Known Issues
 
-1. **CLI Fetch Error** (Cosmetic)
-   - Command: `mindscout fetch`
-   - Issue: Shows "Got unexpected extra arguments" error
-   - Impact: Visual only, functionality works perfectly
-   - Workaround: Use `python test_fetch.py` or call function directly
-   - Priority: Low (doesn't affect core functionality)
+~~1. **CLI Fetch Error** (Cosmetic)~~ - **FIXED!** ✅
+   - Replaced Click with argparse
+   - All commands now work without errors
+   - No more mysterious argument parsing issues
 
 ---
 
@@ -123,11 +122,11 @@ articles
 ```toml
 feedparser>=6.0.10     # RSS feed parsing
 requests>=2.31.0       # HTTP requests
-click>=8.1.7           # CLI framework
 rich>=13.7.0           # Terminal formatting
 sqlalchemy>=2.0.0      # Database ORM
 anthropic>=0.40.0      # NEW - Anthropic Claude API
 numpy>=1.24.0          # NEW - Numerical operations for embeddings
+# Note: Replaced Click with built-in argparse for simpler, more reliable CLI
 ```
 
 **Dev dependencies** (optional):

@@ -49,7 +49,10 @@ export ANTHROPIC_API_KEY='your-api-key-here'
 
 ```bash
 # Fetch latest articles from arXiv
-mindscout fetch  # or: python test_fetch.py
+mindscout fetch
+
+# Fetch from specific categories
+mindscout fetch -c cs.CV -c cs.AI
 
 # List unread articles
 mindscout list --unread

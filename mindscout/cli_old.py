@@ -1,10 +1,11 @@
-"""Command-line interface for Mind Scout using argparse."""
+"""Command-line interface for Mind Scout."""
 
-import argparse
-import sys
+import click
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
+from rich.text import Text
+from datetime import datetime
 
 from mindscout.database import init_db, get_session, Article
 from mindscout.fetchers.arxiv import fetch_arxiv
@@ -13,9 +14,28 @@ from mindscout.config import DEFAULT_CATEGORIES
 console = Console()
 
 
-def cmd_fetch(args):
+@click.group()
+@click.version_option(version="0.1.0")
+def main():
+    """Mind Scout - Your AI research assistant.
+
+    Stay on top of advances in AI with personalized recommendations.
+    """
+    # Ensure database is initialized
+    init_db()
+
+
+@main.command()
+@click.option(
+    "--categories",
+    "-c",
+    multiple=True,
+    help="arXiv categories to fetch (e.g., cs.AI, cs.LG)",
+)
+def fetch(categories):
     """Fetch new articles from arXiv."""
-    categories = args.categories if args.categories else DEFAULT_CATEGORIES
+    if not categories:
+        categories = DEFAULT_CATEGORIES
 
     console.print(f"[bold blue]Fetching articles from categories:[/bold blue] {', '.join(categories)}")
 
@@ -29,21 +49,26 @@ def cmd_fetch(args):
         console.print(f"[bold red]Error:[/bold red] {e}")
 
 
-def cmd_list(args):
+@main.command()
+@click.option("--unread", "-u", is_flag=True, help="Show only unread articles")
+@click.option("--limit", "-n", default=10, help="Number of articles to show")
+@click.option("--source", "-s", help="Filter by source (e.g., arxiv)")
+def list(unread, limit, source):
     """List articles in the database."""
     session = get_session()
 
     try:
         query = session.query(Article)
 
-        if args.unread:
+        if unread:
             query = query.filter_by(is_read=False)
 
-        if args.source:
-            query = query.filter_by(source=args.source)
+        if source:
+            query = query.filter_by(source=source)
 
+        # Order by fetched date descending
         query = query.order_by(Article.fetched_date.desc())
-        articles = query.limit(args.limit).all()
+        articles = query.limit(limit).all()
 
         if not articles:
             console.print("[yellow]No articles found[/yellow]")
@@ -75,17 +100,20 @@ def cmd_list(args):
         session.close()
 
 
-def cmd_show(args):
+@main.command()
+@click.argument("article_id", type=int)
+def show(article_id):
     """Show details of a specific article."""
     session = get_session()
 
     try:
-        article = session.query(Article).filter_by(id=args.article_id).first()
+        article = session.query(Article).filter_by(id=article_id).first()
 
         if not article:
-            console.print(f"[bold red]Article {args.article_id} not found[/bold red]")
+            console.print(f"[bold red]Article {article_id} not found[/bold red]")
             return
 
+        # Create a rich panel with article details
         content = []
         content.append(f"[bold cyan]Title:[/bold cyan] {article.title}")
         content.append(f"[bold cyan]Authors:[/bold cyan] {article.authors or 'N/A'}")
@@ -100,69 +128,60 @@ def cmd_show(args):
         read_status = "[green]Read[/green]" if article.is_read else "[yellow]Unread[/yellow]"
         content.append(f"[bold cyan]Status:[/bold cyan] {read_status}")
 
-        # Show summary if processed
-        if article.processed and article.summary:
-            content.append("\n[bold cyan]Summary:[/bold cyan]")
-            content.append(article.summary)
-
-        # Show topics if processed
-        if article.processed and article.topics:
-            import json
-            try:
-                topics = json.loads(article.topics)
-                content.append(f"\n[bold cyan]Topics:[/bold cyan] {', '.join(topics)}")
-            except json.JSONDecodeError:
-                pass
-
         content.append("\n[bold cyan]Abstract:[/bold cyan]")
         content.append(article.abstract or "No abstract available")
 
-        panel = Panel("\n".join(content), title=f"Article {article.id}", border_style="blue")
+        panel = Panel("\n".join(content), title=f"Article {article_id}", border_style="blue")
         console.print(panel)
 
     finally:
         session.close()
 
 
-def cmd_read(args):
+@main.command()
+@click.argument("article_id", type=int)
+def read(article_id):
     """Mark an article as read."""
     session = get_session()
 
     try:
-        article = session.query(Article).filter_by(id=args.article_id).first()
+        article = session.query(Article).filter_by(id=article_id).first()
 
         if not article:
-            console.print(f"[bold red]Article {args.article_id} not found[/bold red]")
+            console.print(f"[bold red]Article {article_id} not found[/bold red]")
             return
 
         article.is_read = True
         session.commit()
-        console.print(f"[bold green]✓[/bold green] Marked article {args.article_id} as read")
+        console.print(f"[bold green]✓[/bold green] Marked article {article_id} as read")
 
     finally:
         session.close()
 
 
-def cmd_unread(args):
+@main.command()
+@click.argument("article_id", type=int)
+def unread(article_id):
     """Mark an article as unread."""
     session = get_session()
 
     try:
-        article = session.query(Article).filter_by(id=args.article_id).first()
+        article = session.query(Article).filter_by(id=article_id).first()
 
         if not article:
-            console.print(f"[bold red]Article {args.article_id} not found[/bold red]")
+            console.print(f"[bold red]Article {article_id} not found[/bold red]")
             return
 
         article.is_read = False
         session.commit()
-        console.print(f"[bold green]✓[/bold green] Marked article {args.article_id} as unread")
+        console.print(f"[bold green]✓[/bold green] Marked article {article_id} as unread")
 
     finally:
         session.close()
 
 
-def cmd_stats(args):
+@main.command()
+def stats():
     """Show statistics about your article collection."""
     session = get_session()
 
@@ -194,22 +213,25 @@ def cmd_stats(args):
         session.close()
 
 
-def cmd_process(args):
+@main.command()
+@click.option("--limit", "-n", type=int, help="Maximum number of articles to process")
+@click.option("--force", "-f", is_flag=True, help="Reprocess already processed articles")
+def process(limit, force):
     """Process articles with LLM (summarization and topic extraction)."""
     from mindscout.processors.content import ContentProcessor
 
     try:
         processor = ContentProcessor()
 
-        if args.limit:
-            console.print(f"[bold blue]Processing up to {args.limit} articles...[/bold blue]")
+        if limit:
+            console.print(f"[bold blue]Processing up to {limit} articles...[/bold blue]")
         else:
             console.print("[bold blue]Processing all unprocessed articles...[/bold blue]")
 
-        if args.force:
+        if force:
             console.print("[yellow]Force mode: reprocessing already processed articles[/yellow]")
 
-        processed, failed = processor.process_batch(limit=args.limit, force=args.force)
+        processed, failed = processor.process_batch(limit=limit, force=force)
 
         if processed > 0:
             console.print(f"[bold green]✓[/bold green] Processed {processed} articles")
@@ -226,7 +248,8 @@ def cmd_process(args):
         console.print(f"[bold red]Error:[/bold red] {e}")
 
 
-def cmd_topics(args):
+@main.command()
+def topics():
     """Show all discovered topics from processed articles."""
     from mindscout.processors.content import ContentProcessor
 
@@ -248,20 +271,23 @@ def cmd_topics(args):
     console.print(f"\n[dim]Total unique topics: {len(stats['top_topics'])}[/dim]")
 
 
-def cmd_find_by_topic(args):
+@main.command()
+@click.argument("topic")
+@click.option("--limit", "-n", default=10, help="Number of articles to show")
+def find_by_topic(topic, limit):
     """Find articles by topic."""
     from mindscout.processors.content import ContentProcessor
 
     processor = ContentProcessor(lazy_init=True)
-    articles = processor.get_articles_by_topic(args.topic, limit=args.limit)
+    articles = processor.get_articles_by_topic(topic, limit=limit)
 
     if not articles:
-        console.print(f"[yellow]No articles found with topic matching '{args.topic}'[/yellow]")
+        console.print(f"[yellow]No articles found with topic matching '{topic}'[/yellow]")
         console.print("[dim]Make sure articles are processed first with 'mindscout process'[/dim]")
         return
 
     table = Table(
-        title=f"Articles matching '{args.topic}' ({len(articles)} found)",
+        title=f"Articles matching '{topic}' ({len(articles)} found)",
         show_header=True,
         header_style="bold cyan",
     )
@@ -281,7 +307,8 @@ def cmd_find_by_topic(args):
     console.print(table)
 
 
-def cmd_processing_stats(args):
+@main.command()
+def processing_stats():
     """Show processing statistics."""
     from mindscout.processors.content import ContentProcessor
 
@@ -295,85 +322,11 @@ def cmd_processing_stats(args):
     table.add_row("Total Articles", str(stats["total_articles"]))
     table.add_row("Processed", f"[green]{stats['processed']}[/green]")
     table.add_row("Unprocessed", f"[yellow]{stats['unprocessed']}[/yellow]")
-    table.add_row("Processing Rate", f"{stats['processing_rate']:.1f}%")
+    table.add_row(
+        "Processing Rate", f"{stats['processing_rate']:.1f}%"
+    )
 
     console.print(table)
-
-
-def main():
-    """Main entry point for Mind Scout CLI."""
-    # Initialize database
-    init_db()
-
-    # Create main parser
-    parser = argparse.ArgumentParser(
-        prog='mindscout',
-        description='Mind Scout - Your AI research assistant'
-    )
-    parser.add_argument('--version', action='version', version='mindscout 0.2.0')
-
-    # Create subparsers for commands
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
-
-    # fetch command
-    parser_fetch = subparsers.add_parser('fetch', help='Fetch new articles from arXiv')
-    parser_fetch.add_argument('-c', '--categories', nargs='*', help='arXiv categories to fetch')
-    parser_fetch.set_defaults(func=cmd_fetch)
-
-    # list command
-    parser_list = subparsers.add_parser('list', help='List articles in the database')
-    parser_list.add_argument('-u', '--unread', action='store_true', help='Show only unread articles')
-    parser_list.add_argument('-n', '--limit', type=int, default=10, help='Number of articles to show')
-    parser_list.add_argument('-s', '--source', help='Filter by source')
-    parser_list.set_defaults(func=cmd_list)
-
-    # show command
-    parser_show = subparsers.add_parser('show', help='Show details of a specific article')
-    parser_show.add_argument('article_id', type=int, help='Article ID')
-    parser_show.set_defaults(func=cmd_show)
-
-    # read command
-    parser_read = subparsers.add_parser('read', help='Mark an article as read')
-    parser_read.add_argument('article_id', type=int, help='Article ID')
-    parser_read.set_defaults(func=cmd_read)
-
-    # unread command
-    parser_unread = subparsers.add_parser('unread', help='Mark an article as unread')
-    parser_unread.add_argument('article_id', type=int, help='Article ID')
-    parser_unread.set_defaults(func=cmd_unread)
-
-    # stats command
-    parser_stats = subparsers.add_parser('stats', help='Show statistics')
-    parser_stats.set_defaults(func=cmd_stats)
-
-    # process command
-    parser_process = subparsers.add_parser('process', help='Process articles with LLM')
-    parser_process.add_argument('-n', '--limit', type=int, help='Maximum number of articles to process')
-    parser_process.add_argument('-f', '--force', action='store_true', help='Reprocess already processed articles')
-    parser_process.set_defaults(func=cmd_process)
-
-    # topics command
-    parser_topics = subparsers.add_parser('topics', help='Show discovered topics')
-    parser_topics.set_defaults(func=cmd_topics)
-
-    # find-by-topic command
-    parser_find = subparsers.add_parser('find-by-topic', help='Find articles by topic')
-    parser_find.add_argument('topic', help='Topic to search for')
-    parser_find.add_argument('-n', '--limit', type=int, default=10, help='Number of results')
-    parser_find.set_defaults(func=cmd_find_by_topic)
-
-    # processing-stats command
-    parser_pstats = subparsers.add_parser('processing-stats', help='Show processing statistics')
-    parser_pstats.set_defaults(func=cmd_processing_stats)
-
-    # Parse arguments
-    args = parser.parse_args()
-
-    # Execute command
-    if hasattr(args, 'func'):
-        args.func(args)
-    else:
-        parser.print_help()
 
 
 if __name__ == "__main__":

@@ -60,11 +60,11 @@ Updates the read status so you can track what you've reviewed.
 ### 5. Fetch New Articles
 ```bash
 # Fetch from default categories (cs.AI, cs.LG, cs.CL)
-python test_fetch.py
+mindscout fetch
 
-# Or fetch from specific categories
-# (Note: CLI fetch has a cosmetic error but works via Python)
-python -c "from mindscout.fetchers.arxiv import fetch_arxiv; print(f'Added {fetch_arxiv([\"cs.CV\"])} articles')"
+# Fetch from specific categories
+mindscout fetch -c cs.CV
+mindscout fetch -c cs.AI -c cs.LG
 ```
 
 ## Architecture Highlights
@@ -75,7 +75,7 @@ mindscout/
 ├── __init__.py
 ├── config.py           # Configuration and settings
 ├── database.py         # SQLAlchemy models and DB operations
-├── cli.py             # Click-based CLI interface
+├── cli.py             # argparse-based CLI interface
 └── fetchers/
     ├── __init__.py
     └── arxiv.py       # arXiv RSS fetcher (easily add more sources)
@@ -111,7 +111,7 @@ Estimated time: 6-8 hours
 This project demonstrates:
 - ✅ API integration (arXiv RSS)
 - ✅ Database design and ORM usage (SQLAlchemy)
-- ✅ CLI application development (Click)
+- ✅ CLI application development (argparse)
 - ✅ Project structure and modularity
 - ✅ Package configuration (pyproject.toml)
 - ✅ User experience design (Rich formatting)
