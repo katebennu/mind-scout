@@ -90,6 +90,42 @@ def cmd_search(args):
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
 
 
+def cmd_fetch_semantic_scholar(args):
+    """Fetch papers from Semantic Scholar with citation data."""
+    from mindscout.fetchers.semanticscholar import SemanticScholarFetcher
+
+    fetcher = SemanticScholarFetcher()
+
+    # Build description
+    desc_parts = [f"query: '{args.query}'"]
+    if args.year:
+        desc_parts.append(f"year: {args.year}")
+    if args.min_citations:
+        desc_parts.append(f"min citations: {args.min_citations}")
+
+    console.print(f"[bold blue]Searching Semantic Scholar:[/bold blue] {', '.join(desc_parts)}")
+    console.print(f"[dim]Max results: {args.max_results}, Sort: {args.sort}[/dim]")
+
+    try:
+        new_count = fetcher.fetch_and_store(
+            query=args.query,
+            limit=args.max_results,
+            sort=args.sort,
+            year=args.year,
+            min_citations=args.min_citations,
+        )
+
+        if new_count > 0:
+            console.print(f"[bold green]✓[/bold green] Added {new_count} new articles with citation data")
+        else:
+            console.print("[yellow]No new articles found (all already in database)[/yellow]")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        import traceback
+        console.print(f"[dim]{traceback.format_exc()}[/dim]")
+
+
 def cmd_list(args):
     """List articles in the database."""
     session = get_session()
@@ -160,6 +196,22 @@ def cmd_show(args):
 
         read_status = "[green]Read[/green]" if article.is_read else "[yellow]Unread[/yellow]"
         content.append(f"[bold cyan]Status:[/bold cyan] {read_status}")
+
+        # Show citation data if available (Phase 3)
+        if article.citation_count is not None:
+            content.append(f"\n[bold cyan]Citations:[/bold cyan] {article.citation_count}")
+            if article.influential_citations is not None:
+                content.append(f"[bold cyan]Influential Citations:[/bold cyan] {article.influential_citations}")
+
+        # Show implementation links if available (Phase 3)
+        if article.github_url:
+            content.append(f"[bold cyan]GitHub:[/bold cyan] {article.github_url}")
+        if article.paper_url_pwc:
+            content.append(f"[bold cyan]Papers with Code:[/bold cyan] {article.paper_url_pwc}")
+
+        # Show Hugging Face data if available (Phase 3)
+        if article.hf_upvotes is not None:
+            content.append(f"[bold cyan]HF Upvotes:[/bold cyan] {article.hf_upvotes}")
 
         # TODO: Remove or uncomment depending on whether abstract summarization is needed in the future
         # Show summary if processed
@@ -430,6 +482,18 @@ def main():
     parser_search.add_argument('--sort-order', choices=['ascending', 'descending'],
                                default='descending', help='Sort order')
     parser_search.set_defaults(func=cmd_search)
+
+    # fetch-semantic-scholar command
+    parser_ss = subparsers.add_parser('fetch-semantic-scholar',
+                                       help='Fetch papers from Semantic Scholar with citations')
+    parser_ss.add_argument('query', help='Search query')
+    parser_ss.add_argument('-n', '--max-results', type=int, default=50, help='Maximum results (default: 50)')
+    parser_ss.add_argument('--sort', choices=['citationCount:desc', 'citationCount:asc',
+                                               'publicationDate:desc', 'publicationDate:asc'],
+                           default='citationCount:desc', help='Sort order (default: most cited)')
+    parser_ss.add_argument('--year', help='Filter by year (e.g., "2024" or "2020-2024")')
+    parser_ss.add_argument('--min-citations', type=int, help='Minimum citation count')
+    parser_ss.set_defaults(func=cmd_fetch_semantic_scholar)
 
     # list command
     parser_list = subparsers.add_parser('list', help='List articles in the database')

@@ -13,12 +13,18 @@ Mind Scout uses agentic workflows to discover, process, and recommend AI researc
 - 🎨 **Beautiful CLI** with rich formatting and tables
 - 📊 **Statistics** about your collection
 
-### Phase 2: AI-Powered Analysis ✅ NEW!
+### Phase 2: AI-Powered Analysis ✅
 - 🤖 **Smart summarization** with Claude 3.5 Haiku
 - 🏷️ **Automatic topic extraction** from papers
 - 🔍 **Topic-based search** to find relevant articles
 - 📈 **Processing analytics** and progress tracking
 - 💾 **Vector embeddings** (foundation for Phase 5 semantic search)
+
+### Phase 3: Multi-Source Integration ✅ NEW!
+- 📊 **Semantic Scholar** - Citation counts and metrics
+- 🎯 **Citation-based search** - Find most cited papers
+- 📚 **Multiple academic sources** in one place
+- 🔢 **Impact tracking** with influential citation metrics
 
 ## Installation
 
@@ -31,6 +37,9 @@ pip install -e .
 
 # (Optional) If upgrading from Phase 1, migrate database
 python migrate_db_phase2.py
+
+# (Optional) If upgrading to Phase 3, migrate database
+python migrate_db_phase3.py
 ```
 
 ### Phase 2 Setup (Optional)
@@ -83,6 +92,22 @@ mindscout find-by-topic "transformer"
 mindscout processing-stats
 ```
 
+### Multi-Source Search (Phase 3)
+
+```bash
+# Fetch most cited papers from Semantic Scholar
+mindscout fetch-semantic-scholar "large language models" -n 20
+
+# Filter by year and minimum citations
+mindscout fetch-semantic-scholar "transformers" --year 2024 --min-citations 100
+
+# Sort by publication date instead of citations
+mindscout fetch-semantic-scholar "GPT-4" --sort publicationDate:desc
+
+# View citation data for articles
+mindscout show 1  # Shows citation counts if available
+```
+
 ## Commands
 
 ### `mindscout fetch`
@@ -128,21 +153,45 @@ mindscout search -k "diffusion" --from-date 2025-01-01 --to-date 2025-10-01 --so
 
 **Note:** arXiv doesn't support sorting by citations. Use `--sort-by relevance` for most relevant papers based on search terms.
 
+### `mindscout fetch-semantic-scholar` (Phase 3)
+Fetch papers from Semantic Scholar with citation data and metrics.
+
+Options:
+- `-n, --max-results`: Maximum results (default: 50)
+- `--sort`: Sort order - `citationCount:desc` (default), `citationCount:asc`, `publicationDate:desc`, `publicationDate:asc`
+- `--year YEAR`: Filter by year (e.g., "2024" or "2020-2024")
+- `--min-citations N`: Minimum citation count filter
+
+Examples:
+```bash
+# Most cited papers about transformers
+mindscout fetch-semantic-scholar "transformers" -n 20
+
+# Recent papers from 2024 with at least 50 citations
+mindscout fetch-semantic-scholar "large language models" --year 2024 --min-citations 50
+
+# Papers sorted by publication date
+mindscout fetch-semantic-scholar "neural networks" --sort publicationDate:desc -n 10
+```
+
+**Note:** This command provides the citation-based search that arXiv doesn't support. Great for finding high-impact papers!
+
 ### `mindscout list`
 List articles in your database.
 
 Options:
 - `-u, --unread`: Show only unread articles
 - `-n, --limit`: Number of articles to show (default: 10)
-- `-s, --source`: Filter by source (e.g., arxiv)
+- `-s, --source`: Filter by source (e.g., arxiv, semanticscholar)
 
 Example:
 ```bash
 mindscout list --unread --limit 20
+mindscout list -s semanticscholar  # Show only Semantic Scholar articles
 ```
 
 ### `mindscout show <article_id>`
-Display full details of a specific article including abstract.
+Display full details of a specific article including abstract, and citation data if available (Phase 3).
 
 Example:
 ```bash
@@ -156,7 +205,7 @@ Mark an article as read.
 Mark an article as unread.
 
 ### `mindscout stats`
-Show statistics about your article collection.
+Show statistics about your article collection, including source breakdown (arXiv, Semantic Scholar, etc.).
 
 ### `mindscout process` (Phase 2)
 Process articles with LLM for summarization and topic extraction.
@@ -234,15 +283,17 @@ Currently supported categories:
 - ✅ Vector embeddings for semantic search (placeholder)
 - ✅ Topic-based article search
 
-### Phase 3: Memory System (Next)
+### Phase 3: Multi-Source Integration 🚧 IN PROGRESS
+- ✅ Semantic Scholar integration with citation data
+- ✅ Citation-based search and sorting
+- 🚧 Papers with Code (implementation links)
+- 🚧 Hugging Face (community engagement metrics)
+- ⏳ Cross-source deduplication
+
+### Phase 4: User Profile & Recommendations (Next)
 - User profile and interests
 - Basic recommendations
 - Learning from feedback
-
-### Phase 4: Multi-Agent Coordination
-- Multiple content sources (Twitter, Hugging Face, etc.)
-- Parallel fetching
-- Deduplication
 
 ### Phase 5: Smart Recommendations
 - Semantic similarity search

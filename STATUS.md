@@ -2,7 +2,7 @@
 
 **Last Updated**: October 27, 2025
 **Current Phase**: Phase 2 Complete ✅
-**Next Phase**: Phase 3 - Memory System
+**Next Phase**: Phase 3 - Multi-Source Integration
 
 ---
 
@@ -169,26 +169,33 @@ ruff>=0.1.0            # Linting
 
 ## Next Steps (Phase 3)
 
-### Goals
+### Goals - Multi-Source Integration
+1. Semantic Scholar integration (with citation data!)
+2. Papers with Code integration (implementations & benchmarks)
+3. Hugging Face daily papers integration
+4. Base fetcher class for consistency
+5. Multi-source coordination and deduplication
+
+### New Features
+- Fetch papers with citation counts
+- Sort by most cited papers
+- Get implementation links from Papers with Code
+- Access Hugging Face community-curated papers
+- Unified interface across all sources
+
+### Estimated Time
+10-15 hours
+
+---
+
+## Future: Phase 4 (formerly Phase 3)
+
+### Goals - User Profile & Recommendations
 1. User profile configuration
 2. Interest tracking system
 3. Reading history analytics
 4. Basic recommendation algorithm
 5. Feedback mechanism (thumbs up/down)
-
-### New Database Tables Needed
-```python
-UserProfile:
-  - interests (JSON list of topics)
-  - skill_level (beginner/intermediate/advanced)
-  - preferred_sources
-
-ReadingHistory:
-  - article_id, read_date, time_spent, rating
-
-Recommendation:
-  - article_id, score, reason, recommended_date
-```
 
 ### Estimated Time
 8-10 hours

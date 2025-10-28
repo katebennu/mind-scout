@@ -49,6 +49,17 @@ class Article(Base):
     # When article was processed
     processing_date = Column(DateTime)
 
+    # Phase 3: Multi-Source metadata
+    # Citation metrics (from Semantic Scholar)
+    citation_count = Column(Integer)
+    influential_citations = Column(Integer)
+    # Implementation links (from Papers with Code)
+    github_url = Column(String)
+    has_implementation = Column(Boolean, default=False)
+    paper_url_pwc = Column(String)  # Papers with Code URL
+    # Community engagement (from Hugging Face)
+    hf_upvotes = Column(Integer)
+
     def __repr__(self):
         return f"<Article {self.source_id}: {self.title[:50]}>"
 

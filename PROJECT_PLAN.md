@@ -121,9 +121,69 @@ mindscout topics               # List all discovered topics
 
 ---
 
-### Phase 3: Memory System (8-10 hours)
+### Phase 3: Multi-Source Integration (10-15 hours)
 
-**Goal**: Build user profile and basic personalized recommendations
+**Goal**: Add multiple high-quality AI research sources with citation data
+
+**Features**:
+- [ ] Semantic Scholar integration (citation counts & sorting!)
+- [ ] Papers with Code integration (implementation links)
+- [ ] Hugging Face daily papers integration
+- [ ] Base fetcher class for consistency
+- [ ] Multi-source coordination and deduplication
+- [ ] Source-specific metadata (citations, GitHub links, etc.)
+
+**New Database Columns** (extend Article table):
+```python
+Article (additions):
+  - citation_count (INTEGER)         # From Semantic Scholar
+  - influential_citations (INTEGER)  # From Semantic Scholar
+  - github_url (VARCHAR)             # From Papers with Code
+  - has_implementation (BOOLEAN)     # Has code available
+  - paper_url_pwc (VARCHAR)          # Papers with Code URL
+  - hf_upvotes (INTEGER)             # Hugging Face community votes
+```
+
+**New Fetchers**:
+```
+mindscout/
+└── fetchers/
+    ├── base.py              # Base fetcher class
+    ├── arxiv.py             # Existing
+    ├── arxiv_advanced.py    # Existing
+    ├── semanticscholar.py   # NEW - With citations!
+    ├── paperswithcode.py    # NEW - With implementations
+    └── huggingface.py       # NEW - Community papers
+```
+
+**CLI Commands**:
+```bash
+# Fetch from specific sources
+mindscout fetch-semantic-scholar -k "transformers" -n 50 --sort-citations
+mindscout fetch-papers-with-code -k "diffusion"
+mindscout fetch-huggingface --daily
+
+# List by citations
+mindscout list --sort-by citations --limit 20
+
+# Show with enhanced metadata
+mindscout show 123  # Now includes citations, GitHub links
+```
+
+**Portfolio Value**:
+- Multi-source integration
+- API integration variety
+- Data enrichment
+- Citation tracking
+- Code-paper linking
+
+**Estimated Time**: 10-15 hours
+
+---
+
+### Phase 4: User Profile & Recommendations (8-10 hours)
+
+**Goal**: Personalized recommendations based on reading history
 
 **Features**:
 - [ ] User profile configuration
@@ -136,109 +196,16 @@ mindscout topics               # List all discovered topics
 **New Database Tables**:
 ```python
 UserProfile:
-  - id
-  - interests (JSON list of topics)
-  - skill_level
-  - preferred_sources
-  - created_date
-  - updated_date
+  - interests, skill_level, preferred_sources
 
 ReadingHistory:
-  - id
-  - article_id (foreign key)
-  - read_date
-  - time_spent (optional)
-  - rating (thumbs up/down/neutral)
+  - article_id, read_date, rating
 
 Recommendation:
-  - id
-  - article_id (foreign key)
-  - score (relevance score)
-  - reason (why recommended)
-  - recommended_date
-  - dismissed (boolean)
+  - article_id, score, reason
 ```
-
-**CLI Commands**:
-```bash
-mindscout profile              # View/edit profile
-mindscout profile --interests "transformers,reinforcement learning"
-mindscout recommend            # Get personalized recommendations
-mindscout recommend --limit 5
-mindscout feedback <id> up     # Thumbs up
-mindscout feedback <id> down   # Thumbs down
-```
-
-**Recommendation Algorithm (v1)**:
-- Match article topics with user interests
-- Filter by skill level
-- Boost unread articles
-- Consider reading history patterns
-- Simple weighted scoring
-
-**Portfolio Value**:
-- User modeling
-- Personalization algorithms
-- State management
-- Data relationships
 
 **Estimated Time**: 8-10 hours
-
----
-
-### Phase 4: Multi-Agent Coordination (6-8 hours)
-
-**Goal**: Scale to multiple content sources with parallel processing
-
-**Features**:
-- [ ] Add 2-3 new sources (Twitter/X, Hugging Face, AI newsletters)
-- [ ] Parallel fetching with async/threading
-- [ ] Agent coordination system
-- [ ] Content deduplication logic
-- [ ] Source priority/weighting
-- [ ] Error handling and retry logic
-
-**New Fetchers**:
-```
-mindscout/
-└── fetchers/
-    ├── arxiv.py       (existing)
-    ├── twitter.py     (new)
-    ├── huggingface.py (new)
-    └── base.py        (base fetcher class)
-```
-
-**Agent Coordinator**:
-```python
-AgentCoordinator:
-  - Schedule fetchers to run in parallel
-  - Manage rate limits per source
-  - Handle failures gracefully
-  - Deduplicate content across sources
-  - Log agent activities
-```
-
-**Deduplication Strategy**:
-- Compare titles (fuzzy matching)
-- Check URLs
-- Compare embeddings (cosine similarity)
-- Merge duplicate entries
-
-**CLI Commands**:
-```bash
-mindscout fetch --source arxiv
-mindscout fetch --source twitter
-mindscout fetch --all          # Fetch from all sources
-mindscout sources              # List available sources
-```
-
-**Portfolio Value**:
-- Agentic architecture
-- Parallel processing
-- Multi-source integration
-- Error handling at scale
-
-**Estimated Time**: 6-8 hours
 
 ---
 
