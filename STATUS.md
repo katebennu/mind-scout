@@ -36,6 +36,7 @@ mindscout process --limit 5 # ✅ Working
 mindscout processing-stats  # ✅ Working
 mindscout topics            # ✅ Working
 mindscout find-by-topic <topic>  # ✅ Working
+mindscout clear             # ✅ Working (clears database)
 ```
 
 ### Components

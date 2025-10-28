@@ -300,6 +300,39 @@ def cmd_processing_stats(args):
     console.print(table)
 
 
+def cmd_clear(args):
+    """Clear all articles from the database."""
+    session = get_session()
+
+    try:
+        # Get count before deletion
+        count = session.query(Article).count()
+
+        if count == 0:
+            console.print("[yellow]Database is already empty[/yellow]")
+            return
+
+        # Confirm deletion unless --force flag is used
+        if not args.force:
+            console.print(f"[bold yellow]Warning:[/bold yellow] This will delete {count} articles from the database.")
+            response = input("Are you sure? Type 'yes' to confirm: ")
+            if response.lower() != 'yes':
+                console.print("[yellow]Operation cancelled[/yellow]")
+                return
+
+        # Delete all articles
+        session.query(Article).delete()
+        session.commit()
+
+        console.print(f"[bold green]✓[/bold green] Deleted {count} articles from the database")
+
+    except Exception as e:
+        session.rollback()
+        console.print(f"[bold red]Error:[/bold red] {e}")
+    finally:
+        session.close()
+
+
 def main():
     """Main entry point for Mind Scout CLI."""
     # Initialize database
@@ -365,6 +398,11 @@ def main():
     # processing-stats command
     parser_pstats = subparsers.add_parser('processing-stats', help='Show processing statistics')
     parser_pstats.set_defaults(func=cmd_processing_stats)
+
+    # clear command
+    parser_clear = subparsers.add_parser('clear', help='Clear all articles from database')
+    parser_clear.add_argument('-f', '--force', action='store_true', help='Skip confirmation prompt')
+    parser_clear.set_defaults(func=cmd_clear)
 
     # Parse arguments
     args = parser.parse_args()

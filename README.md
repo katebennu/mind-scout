@@ -155,6 +155,23 @@ mindscout find-by-topic "reinforcement learning"
 ### `mindscout processing-stats` (Phase 2)
 Show processing progress and statistics.
 
+### `mindscout clear`
+Clear all articles from the database.
+
+Options:
+- `--force`: Skip confirmation prompt
+
+Example:
+```bash
+# With confirmation
+mindscout clear
+
+# Skip confirmation
+mindscout clear --force
+```
+
+**Warning:** This permanently deletes all articles. Use with caution!
+
 ## Configuration
 
 Mind Scout stores data in `~/.mindscout/` by default. You can change this by setting the `MINDSCOUT_DATA_DIR` environment variable:
