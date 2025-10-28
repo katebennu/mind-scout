@@ -86,7 +86,7 @@ mindscout processing-stats
 ## Commands
 
 ### `mindscout fetch`
-Fetch new articles from arXiv RSS feeds.
+Fetch latest articles from arXiv RSS feeds (simple, fast).
 
 Options:
 - `-c, --categories`: Specify categories to fetch (can be used multiple times)
@@ -95,6 +95,38 @@ Example:
 ```bash
 mindscout fetch -c cs.AI -c cs.CV
 ```
+
+### `mindscout search` (Advanced)
+Search arXiv with advanced filters using the arXiv API.
+
+Options:
+- `-k, --keywords`: Keywords to search for
+- `-c, --categories`: Filter by categories
+- `-a, --author`: Search by author name
+- `-t, --title`: Search in titles
+- `--last-days N`: Fetch papers from last N days
+- `--from-date YYYY-MM-DD`: Start date
+- `--to-date YYYY-MM-DD`: End date
+- `-n, --max-results`: Maximum results (default: 100)
+- `--sort-by`: Sort by `submittedDate`, `lastUpdatedDate`, or `relevance`
+- `--sort-order`: `ascending` or `descending`
+
+Examples:
+```bash
+# Papers from last month about transformers
+mindscout search -k "transformer" --last-days 30
+
+# Papers by specific author from last year
+mindscout search -a "Hinton" --last-days 365 -n 20
+
+# Papers in specific categories with keywords
+mindscout search -k "reinforcement learning" -c cs.AI cs.LG -n 50
+
+# Papers from a date range sorted by relevance
+mindscout search -k "diffusion" --from-date 2025-01-01 --to-date 2025-10-01 --sort-by relevance
+```
+
+**Note:** arXiv doesn't support sorting by citations. Use `--sort-by relevance` for most relevant papers based on search terms.
 
 ### `mindscout list`
 List articles in your database.

@@ -47,11 +47,14 @@ class ContentProcessor:
         self._ensure_llm()
 
         try:
+            # Commented out to save token usage; can be re-enabled if needed
+            # TODO: Remove or uncomment depending on whether abstract summarization is needed in the future
             # Generate summary from abstract
-            if article.abstract:
-                article.summary = self.llm.summarize(article.abstract, max_sentences=2)
-            else:
-                article.summary = None
+            # if article.abstract:
+            #     article.summary = self.llm.summarize(article.abstract, max_sentences=2)
+            #     article.summary = article.abstract
+            # else:
+            #     article.summary = None
 
             # Extract topics
             topics = self.llm.extract_topics(

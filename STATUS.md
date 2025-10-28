@@ -29,6 +29,7 @@ mindscout unread <id>       # ✅ Working
 mindscout stats             # ✅ Working
 mindscout fetch             # ✅ Working (fixed!)
 mindscout fetch -c cs.CV    # ✅ Working
+mindscout search            # ✅ Working (advanced arXiv search!)
 
 # Phase 2 Commands (NEW!)
 mindscout process           # ✅ Working (requires ANTHROPIC_API_KEY)
@@ -42,7 +43,8 @@ mindscout clear             # ✅ Working (clears database)
 ### Components
 - ✅ Database (SQLite with SQLAlchemy)
 - ✅ arXiv fetcher (RSS parsing)
-- ✅ CLI interface (Click + Rich)
+- ✅ arXiv advanced search (API with filters) - NEW!
+- ✅ CLI interface (argparse + Rich)
 - ✅ Configuration system
 - ✅ Article storage and retrieval
 - ✅ LLM integration (Anthropic Claude 3.5 Haiku)

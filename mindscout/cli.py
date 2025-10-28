@@ -29,6 +29,67 @@ def cmd_fetch(args):
         console.print(f"[bold red]Error:[/bold red] {e}")
 
 
+def cmd_search(args):
+    """Search and fetch articles from arXiv with advanced filters."""
+    from mindscout.fetchers.arxiv_advanced import ArxivAdvancedFetcher
+    from datetime import datetime, timedelta
+
+    fetcher = ArxivAdvancedFetcher()
+
+    # Parse date arguments
+    from_date = None
+    to_date = None
+
+    if args.last_days:
+        to_date = datetime.now()
+        from_date = to_date - timedelta(days=args.last_days)
+    elif args.from_date:
+        from_date = datetime.strptime(args.from_date, "%Y-%m-%d")
+    elif args.to_date:
+        to_date = datetime.strptime(args.to_date, "%Y-%m-%d")
+
+    # Build description
+    desc_parts = []
+    if args.keywords:
+        desc_parts.append(f"keywords: '{args.keywords}'")
+    if args.categories:
+        desc_parts.append(f"categories: {', '.join(args.categories)}")
+    if args.author:
+        desc_parts.append(f"author: '{args.author}'")
+    if args.title:
+        desc_parts.append(f"title: '{args.title}'")
+    if from_date:
+        desc_parts.append(f"from: {from_date.strftime('%Y-%m-%d')}")
+    if to_date:
+        desc_parts.append(f"to: {to_date.strftime('%Y-%m-%d')}")
+
+    console.print(f"[bold blue]Searching arXiv with:[/bold blue] {', '.join(desc_parts)}")
+    console.print(f"[dim]Max results: {args.max_results}, Sort by: {args.sort_by}[/dim]")
+
+    try:
+        new_count = fetcher.fetch_and_store(
+            keywords=args.keywords,
+            categories=args.categories,
+            author=args.author,
+            title=args.title,
+            from_date=from_date,
+            to_date=to_date,
+            max_results=args.max_results,
+            sort_by=args.sort_by,
+            sort_order=args.sort_order,
+        )
+
+        if new_count > 0:
+            console.print(f"[bold green]✓[/bold green] Added {new_count} new articles")
+        else:
+            console.print("[yellow]No new articles found (all already in database)[/yellow]")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        import traceback
+        console.print(f"[dim]{traceback.format_exc()}[/dim]")
+
+
 def cmd_list(args):
     """List articles in the database."""
     session = get_session()
@@ -100,10 +161,11 @@ def cmd_show(args):
         read_status = "[green]Read[/green]" if article.is_read else "[yellow]Unread[/yellow]"
         content.append(f"[bold cyan]Status:[/bold cyan] {read_status}")
 
+        # TODO: Remove or uncomment depending on whether abstract summarization is needed in the future
         # Show summary if processed
-        if article.processed and article.summary:
-            content.append("\n[bold cyan]Summary:[/bold cyan]")
-            content.append(article.summary)
+        # if article.processed and article.summary:
+        #     content.append("\n[bold cyan]Summary:[/bold cyan]")
+        #     content.append(article.summary)
 
         # Show topics if processed
         if article.processed and article.topics:
@@ -349,9 +411,25 @@ def main():
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
 
     # fetch command
-    parser_fetch = subparsers.add_parser('fetch', help='Fetch new articles from arXiv')
+    parser_fetch = subparsers.add_parser('fetch', help='Fetch new articles from arXiv RSS')
     parser_fetch.add_argument('-c', '--categories', nargs='*', help='arXiv categories to fetch')
     parser_fetch.set_defaults(func=cmd_fetch)
+
+    # search command (advanced arXiv API)
+    parser_search = subparsers.add_parser('search', help='Search arXiv with advanced filters')
+    parser_search.add_argument('-k', '--keywords', help='Keywords to search for')
+    parser_search.add_argument('-c', '--categories', nargs='*', help='arXiv categories to filter by')
+    parser_search.add_argument('-a', '--author', help='Author name to search for')
+    parser_search.add_argument('-t', '--title', help='Title keywords to search for')
+    parser_search.add_argument('--last-days', type=int, help='Fetch papers from last N days')
+    parser_search.add_argument('--from-date', help='Start date (YYYY-MM-DD)')
+    parser_search.add_argument('--to-date', help='End date (YYYY-MM-DD)')
+    parser_search.add_argument('-n', '--max-results', type=int, default=100, help='Maximum results (default: 100)')
+    parser_search.add_argument('--sort-by', choices=['submittedDate', 'lastUpdatedDate', 'relevance'],
+                               default='submittedDate', help='Sort field')
+    parser_search.add_argument('--sort-order', choices=['ascending', 'descending'],
+                               default='descending', help='Sort order')
+    parser_search.set_defaults(func=cmd_search)
 
     # list command
     parser_list = subparsers.add_parser('list', help='List articles in the database')
