@@ -30,7 +30,20 @@ def cmd_fetch(args):
 
 
 def cmd_search(args):
-    """Search and fetch articles from arXiv with advanced filters."""
+    """Search and fetch articles from multiple sources."""
+    source = args.source.lower()
+
+    if source == 'arxiv':
+        _search_arxiv(args)
+    elif source == 'semanticscholar':
+        _search_semanticscholar(args)
+    else:
+        console.print(f"[bold red]Error:[/bold red] Unknown source '{source}'")
+        console.print("[yellow]Supported sources: arxiv, semanticscholar[/yellow]")
+
+
+def _search_arxiv(args):
+    """Search arXiv with advanced filters."""
     from mindscout.fetchers.arxiv_advanced import ArxivAdvancedFetcher
     from datetime import datetime, timedelta
 
@@ -63,7 +76,7 @@ def cmd_search(args):
     if to_date:
         desc_parts.append(f"to: {to_date.strftime('%Y-%m-%d')}")
 
-    console.print(f"[bold blue]Searching arXiv with:[/bold blue] {', '.join(desc_parts)}")
+    console.print(f"[bold blue]Searching arXiv:[/bold blue] {', '.join(desc_parts) if desc_parts else 'all fields'}")
     console.print(f"[dim]Max results: {args.max_results}, Sort by: {args.sort_by}[/dim]")
 
     try:
@@ -90,8 +103,52 @@ def cmd_search(args):
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
 
 
+def _search_semanticscholar(args):
+    """Search Semantic Scholar with citation data."""
+    from mindscout.fetchers.semanticscholar import SemanticScholarFetcher
+
+    # Require query for Semantic Scholar
+    if not args.query:
+        console.print("[bold red]Error:[/bold red] Query is required for Semantic Scholar search")
+        console.print("[yellow]Example:[/yellow] mindscout search --source semanticscholar --query \"transformers\" -n 20")
+        return
+
+    fetcher = SemanticScholarFetcher()
+
+    # Build description
+    desc_parts = [f"query: '{args.query}'"]
+    if args.year:
+        desc_parts.append(f"year: {args.year}")
+    if args.min_citations:
+        desc_parts.append(f"min citations: {args.min_citations}")
+
+    console.print(f"[bold blue]Searching Semantic Scholar:[/bold blue] {', '.join(desc_parts)}")
+    console.print(f"[dim]Max results: {args.max_results}, Sort: {args.ss_sort}[/dim]")
+
+    try:
+        new_count = fetcher.fetch_and_store(
+            query=args.query,
+            limit=args.max_results,
+            sort=args.ss_sort,
+            year=args.year,
+            min_citations=args.min_citations,
+        )
+
+        if new_count > 0:
+            console.print(f"[bold green]✓[/bold green] Added {new_count} new articles with citation data")
+        else:
+            console.print("[yellow]No new articles found (all already in database)[/yellow]")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        import traceback
+        console.print(f"[dim]{traceback.format_exc()}[/dim]")
+
+
 def cmd_fetch_semantic_scholar(args):
-    """Fetch papers from Semantic Scholar with citation data."""
+    """Fetch papers from Semantic Scholar with citation data. DEPRECATED."""
+    console.print("[yellow]⚠ Warning: This command is deprecated. Use 'search --source semanticscholar' instead.[/yellow]\n")
+
     from mindscout.fetchers.semanticscholar import SemanticScholarFetcher
 
     fetcher = SemanticScholarFetcher()
@@ -468,24 +525,39 @@ def main():
     parser_fetch.set_defaults(func=cmd_fetch)
 
     # search command (advanced arXiv API)
-    parser_search = subparsers.add_parser('search', help='Search arXiv with advanced filters')
-    parser_search.add_argument('-k', '--keywords', help='Keywords to search for')
-    parser_search.add_argument('-c', '--categories', nargs='*', help='arXiv categories to filter by')
-    parser_search.add_argument('-a', '--author', help='Author name to search for')
-    parser_search.add_argument('-t', '--title', help='Title keywords to search for')
-    parser_search.add_argument('--last-days', type=int, help='Fetch papers from last N days')
-    parser_search.add_argument('--from-date', help='Start date (YYYY-MM-DD)')
-    parser_search.add_argument('--to-date', help='End date (YYYY-MM-DD)')
+    parser_search = subparsers.add_parser('search', help='Search multiple sources with advanced filters')
+    parser_search.add_argument('--source', choices=['arxiv', 'semanticscholar'], default='arxiv',
+                               help='Source to search (default: arxiv)')
     parser_search.add_argument('-n', '--max-results', type=int, default=100, help='Maximum results (default: 100)')
+
+    # Common arguments
+    parser_search.add_argument('-q', '--query', help='Search query (required for Semantic Scholar)')
+
+    # arXiv-specific arguments
+    parser_search.add_argument('-k', '--keywords', help='[arXiv] Keywords to search for')
+    parser_search.add_argument('-c', '--categories', nargs='*', help='[arXiv] arXiv categories to filter by')
+    parser_search.add_argument('-a', '--author', help='[arXiv] Author name to search for')
+    parser_search.add_argument('-t', '--title', help='[arXiv] Title keywords to search for')
+    parser_search.add_argument('--last-days', type=int, help='[arXiv] Fetch papers from last N days')
+    parser_search.add_argument('--from-date', help='[arXiv] Start date (YYYY-MM-DD)')
+    parser_search.add_argument('--to-date', help='[arXiv] End date (YYYY-MM-DD)')
     parser_search.add_argument('--sort-by', choices=['submittedDate', 'lastUpdatedDate', 'relevance'],
-                               default='submittedDate', help='Sort field')
+                               default='submittedDate', help='[arXiv] Sort field')
     parser_search.add_argument('--sort-order', choices=['ascending', 'descending'],
-                               default='descending', help='Sort order')
+                               default='descending', help='[arXiv] Sort order')
+
+    # Semantic Scholar-specific arguments
+    parser_search.add_argument('--ss-sort', choices=['citationCount:desc', 'citationCount:asc',
+                                                      'publicationDate:desc', 'publicationDate:asc'],
+                               default='citationCount:desc', help='[Semantic Scholar] Sort order')
+    parser_search.add_argument('--year', help='[Semantic Scholar] Filter by year (e.g., "2024" or "2020-2024")')
+    parser_search.add_argument('--min-citations', type=int, help='[Semantic Scholar] Minimum citation count')
+
     parser_search.set_defaults(func=cmd_search)
 
-    # fetch-semantic-scholar command
+    # fetch-semantic-scholar command (DEPRECATED - use 'search --source semanticscholar' instead)
     parser_ss = subparsers.add_parser('fetch-semantic-scholar',
-                                       help='Fetch papers from Semantic Scholar with citations')
+                                       help='[DEPRECATED] Use "search --source semanticscholar" instead')
     parser_ss.add_argument('query', help='Search query')
     parser_ss.add_argument('-n', '--max-results', type=int, default=50, help='Maximum results (default: 50)')
     parser_ss.add_argument('--sort', choices=['citationCount:desc', 'citationCount:asc',

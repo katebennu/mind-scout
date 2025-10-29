@@ -95,14 +95,17 @@ mindscout processing-stats
 ### Multi-Source Search (Phase 3)
 
 ```bash
-# Fetch most cited papers from Semantic Scholar
-mindscout fetch-semantic-scholar "large language models" -n 20
+# Search Semantic Scholar for most cited papers
+mindscout search --source semanticscholar -q "large language models" -n 20
 
 # Filter by year and minimum citations
-mindscout fetch-semantic-scholar "transformers" --year 2024 --min-citations 100
+mindscout search --source semanticscholar -q "transformers" --year 2024 --min-citations 100
 
 # Sort by publication date instead of citations
-mindscout fetch-semantic-scholar "GPT-4" --sort publicationDate:desc
+mindscout search --source semanticscholar -q "GPT-4" --ss-sort publicationDate:desc
+
+# arXiv search still works (default source)
+mindscout search -k "vision transformers" --last-days 30
 
 # View citation data for articles
 mindscout show 1  # Shows citation counts if available
@@ -121,10 +124,15 @@ Example:
 mindscout fetch -c cs.AI -c cs.CV
 ```
 
-### `mindscout search` (Advanced)
-Search arXiv with advanced filters using the arXiv API.
+### `mindscout search`
+Universal search command supporting multiple sources (arXiv and Semantic Scholar).
 
-Options:
+Common Options:
+- `--source`: Choose source - `arxiv` (default) or `semanticscholar`
+- `-n, --max-results`: Maximum results (default: 100)
+- `-q, --query`: Search query (required for Semantic Scholar)
+
+**arXiv Options:**
 - `-k, --keywords`: Keywords to search for
 - `-c, --categories`: Filter by categories
 - `-a, --author`: Search by author name
@@ -132,49 +140,34 @@ Options:
 - `--last-days N`: Fetch papers from last N days
 - `--from-date YYYY-MM-DD`: Start date
 - `--to-date YYYY-MM-DD`: End date
-- `-n, --max-results`: Maximum results (default: 100)
 - `--sort-by`: Sort by `submittedDate`, `lastUpdatedDate`, or `relevance`
 - `--sort-order`: `ascending` or `descending`
 
+**Semantic Scholar Options:**
+- `-q, --query`: Search query (required)
+- `--ss-sort`: Sort order - `citationCount:desc` (default), `citationCount:asc`, `publicationDate:desc`, `publicationDate:asc`
+- `--year YEAR`: Filter by year (e.g., "2024" or "2020-2024")
+- `--min-citations N`: Minimum citation count
+
 Examples:
 ```bash
-# Papers from last month about transformers
+# arXiv: Papers from last month about transformers
 mindscout search -k "transformer" --last-days 30
 
-# Papers by specific author from last year
+# arXiv: Papers by specific author
 mindscout search -a "Hinton" --last-days 365 -n 20
 
-# Papers in specific categories with keywords
-mindscout search -k "reinforcement learning" -c cs.AI cs.LG -n 50
+# Semantic Scholar: Most cited papers
+mindscout search --source semanticscholar -q "large language models" -n 20
 
-# Papers from a date range sorted by relevance
-mindscout search -k "diffusion" --from-date 2025-01-01 --to-date 2025-10-01 --sort-by relevance
+# Semantic Scholar: Filter by year and citations
+mindscout search --source semanticscholar -q "transformers" --year 2024 --min-citations 100
+
+# Semantic Scholar: Sort by recent papers
+mindscout search --source semanticscholar -q "diffusion models" --ss-sort publicationDate:desc
 ```
 
-**Note:** arXiv doesn't support sorting by citations. Use `--sort-by relevance` for most relevant papers based on search terms.
-
-### `mindscout fetch-semantic-scholar` (Phase 3)
-Fetch papers from Semantic Scholar with citation data and metrics.
-
-Options:
-- `-n, --max-results`: Maximum results (default: 50)
-- `--sort`: Sort order - `citationCount:desc` (default), `citationCount:asc`, `publicationDate:desc`, `publicationDate:asc`
-- `--year YEAR`: Filter by year (e.g., "2024" or "2020-2024")
-- `--min-citations N`: Minimum citation count filter
-
-Examples:
-```bash
-# Most cited papers about transformers
-mindscout fetch-semantic-scholar "transformers" -n 20
-
-# Recent papers from 2024 with at least 50 citations
-mindscout fetch-semantic-scholar "large language models" --year 2024 --min-citations 50
-
-# Papers sorted by publication date
-mindscout fetch-semantic-scholar "neural networks" --sort publicationDate:desc -n 10
-```
-
-**Note:** This command provides the citation-based search that arXiv doesn't support. Great for finding high-impact papers!
+**Note:** This unified command replaces the old `fetch-semantic-scholar` command. arXiv doesn't support citation-based sorting, but Semantic Scholar does!
 
 ### `mindscout list`
 List articles in your database.
