@@ -1,361 +1,303 @@
 # Mind Scout - Current Status
 
-**Last Updated**: October 27, 2025
-**Current Phase**: Phase 2 Complete ✅
-**Next Phase**: Phase 3 - Multi-Source Integration
+**Last Updated**: October 30, 2025
+**Current Phase**: Phase 4 Complete ✅
+**Next Phase**: Phase 5 - Smart Recommendations (Vector DB & Semantic Search)
 
 ---
 
 ## Quick Stats
 
-- **Total Articles**: 1,697 (436 → 1,697 after multiple fetches)
-- **Sources**: arXiv (cs.AI, cs.LG, cs.CL, cs.CV)
-- **Lines of Code**: ~900
-- **Dependencies**: 6 core packages (removed Click, added anthropic + numpy)
-- **Time Invested**: 11-15 hours (Phase 1: 5h, Phase 2: 6-10h)
+- **Total Articles**: 628+ articles
+- **Sources**: arXiv, Semantic Scholar (with citation data!)
+- **User Profiles**: Active profile system with interests and preferences
+- **Lines of Code**: ~2,500+ (across all modules)
+- **Dependencies**: 7 core packages
+- **Time Invested**: ~35-40 hours
+  - Phase 1: 5h
+  - Phase 2: 8h
+  - Phase 3: 10h
+  - Phase 4: 12h
 
 ---
 
-## What's Working
+## ✅ What's Complete
 
-### Commands
+### Phase 1: Content Discovery ✅
+- arXiv RSS integration
+- SQLite database storage
+- Basic CLI commands
+- Read/unread tracking
+
+### Phase 2: AI-Powered Analysis ✅
+- LLM integration (Claude 3.5 Haiku)
+- Topic extraction and summarization
+- Vector embeddings (placeholder)
+- Topic-based search
+
+### Phase 3: Multi-Source Integration ✅
+- Semantic Scholar API integration
+- Citation data and metrics
+- Unified search command
+- Advanced filtering by year, citations
+
+### Phase 4: User Profile & Recommendations ✅ NEW!
+- User profile management (interests, skill level, preferences)
+- Multi-factor recommendation engine
+- Article rating system (1-5 stars)
+- Reading insights and analytics
+- Explainable AI recommendations
+
+---
+
+## 🎮 Available Commands
+
+### Content Discovery
 ```bash
-# Phase 1 Commands
-mindscout list              # ✅ Working
-mindscout list --unread     # ✅ Working
-mindscout show <id>         # ✅ Working
-mindscout read <id>         # ✅ Working
-mindscout unread <id>       # ✅ Working
-mindscout stats             # ✅ Working
-mindscout fetch             # ✅ Working (fixed!)
-mindscout fetch -c cs.CV    # ✅ Working
-mindscout search            # ✅ Working (advanced arXiv search!)
+# Fetch articles
+mindscout fetch                              # Quick fetch from arXiv RSS
+mindscout fetch -c cs.AI -c cs.CV           # Specific categories
 
-# Phase 2 Commands (NEW!)
-mindscout process           # ✅ Working (requires ANTHROPIC_API_KEY)
-mindscout process --limit 5 # ✅ Working
-mindscout processing-stats  # ✅ Working
-mindscout topics            # ✅ Working
-mindscout find-by-topic <topic>  # ✅ Working
-mindscout clear             # ✅ Working (clears database)
+# Advanced search
+mindscout search -k "transformers" --last-days 30   # arXiv search
+mindscout search --source semanticscholar -q "GPT" --min-citations 100  # By citations
 ```
 
-### Components
-- ✅ Database (SQLite with SQLAlchemy)
-- ✅ arXiv fetcher (RSS parsing)
-- ✅ arXiv advanced search (API with filters) - NEW!
-- ✅ CLI interface (argparse + Rich)
-- ✅ Configuration system
-- ✅ Article storage and retrieval
-- ✅ LLM integration (Anthropic Claude 3.5 Haiku)
-- ✅ Content processor (summarization + topic extraction)
-- ✅ Embedding generation (placeholder for Phase 5)
+### Content Management
+```bash
+mindscout list                               # List articles
+mindscout list --unread -n 20               # Unread only
+mindscout list -s semanticscholar           # By source
+mindscout show <id>                         # View article details
+mindscout read <id>                         # Mark as read
+mindscout unread <id>                       # Mark as unread
+mindscout stats                             # Collection statistics
+```
+
+### AI Processing
+```bash
+mindscout process --limit 10                # Process articles with LLM
+mindscout topics                            # View discovered topics
+mindscout find-by-topic "attention"         # Find by topic
+mindscout processing-stats                  # Processing progress
+```
+
+### Personalization (Phase 4)
+```bash
+# Profile management
+mindscout profile show                      # View your profile
+mindscout profile set-interests "transformers, RL, NLP"
+mindscout profile set-skill advanced
+mindscout profile set-goal 10
+
+# Recommendations & feedback
+mindscout recommend                         # Get personalized recommendations
+mindscout recommend --explain               # With detailed explanations
+mindscout rate <id> <1-5>                  # Rate an article
+mindscout insights                          # Reading analytics
+```
+
+### Utility
+```bash
+mindscout clear                             # Clear database
+mindscout --help                            # Show all commands
+```
 
 ---
 
-## Known Issues
+## 📊 Database Schema
 
-~~1. **CLI Fetch Error** (Cosmetic)~~ - **FIXED!** ✅
-   - Replaced Click with argparse
-   - All commands now work without errors
-   - No more mysterious argument parsing issues
-
----
-
-## Database Schema
-
+### Articles Table
 ```sql
-articles
-├── id (INTEGER PRIMARY KEY)
-├── source_id (VARCHAR UNIQUE)  -- e.g., "2510.20838" for arXiv
-├── source (VARCHAR)             -- "arxiv", "twitter", etc.
-├── title (VARCHAR)
-├── authors (TEXT)
-├── abstract (TEXT)
-├── url (VARCHAR)
-├── published_date (DATETIME)
-├── fetched_date (DATETIME)
-├── categories (VARCHAR)         -- comma-separated
-├── is_read (BOOLEAN)
-├── -- Phase 2 fields:
-├── summary (TEXT)               -- LLM-generated summary
-├── topics (TEXT)                -- JSON array of extracted topics
-├── embedding (TEXT)             -- JSON array of vector embedding
-├── processed (BOOLEAN)          -- Whether LLM processing is complete
-└── processing_date (DATETIME)   -- When article was processed
+CREATE TABLE articles (
+    -- Core fields
+    id INTEGER PRIMARY KEY,
+    source_id VARCHAR UNIQUE,
+    source VARCHAR,                 -- arxiv, semanticscholar
+    title VARCHAR,
+    authors TEXT,
+    abstract TEXT,
+    url VARCHAR,
+    published_date DATETIME,
+    fetched_date DATETIME,
+    categories VARCHAR,
+    is_read BOOLEAN,
+
+    -- Phase 2: AI Processing
+    summary TEXT,
+    topics TEXT,                    -- JSON array
+    embedding TEXT,                 -- JSON array (placeholder)
+    processed BOOLEAN,
+    processing_date DATETIME,
+
+    -- Phase 3: Multi-Source
+    citation_count INTEGER,
+    influential_citations INTEGER,
+    github_url VARCHAR,
+    has_implementation BOOLEAN,
+    paper_url_pwc VARCHAR,
+    hf_upvotes INTEGER,
+
+    -- Phase 4: User Feedback
+    rating INTEGER,                 -- 1-5 stars
+    rated_date DATETIME
+);
 ```
 
-**Location**: `~/.mindscout/mindscout.db`
+### User Profile Table
+```sql
+CREATE TABLE user_profile (
+    id INTEGER PRIMARY KEY,
+    interests TEXT,                 -- Comma-separated
+    skill_level VARCHAR,            -- beginner/intermediate/advanced
+    preferred_sources TEXT,         -- Comma-separated
+    daily_reading_goal INTEGER,
+    created_date DATETIME,
+    updated_date DATETIME
+);
+```
 
 ---
 
-## File Structure
+## 📁 Project Structure
 
 ```
-/Users/kate/projects/agento/
-├── mindscout/
-│   ├── __init__.py           # Package initialization
-│   ├── cli.py                # CLI commands (Click + Rich)
-│   ├── config.py             # Configuration and settings
-│   ├── database.py           # SQLAlchemy models and DB ops
+mind-scout/
+├── mindscout/              # Main package
+│   ├── cli.py             # CLI interface (argparse)
+│   ├── database.py        # SQLAlchemy models
+│   ├── config.py          # Configuration
+│   ├── profile.py         # User profile management
+│   ├── recommender.py     # Recommendation engine
 │   ├── fetchers/
-│   │   ├── __init__.py
-│   │   └── arxiv.py          # arXiv RSS fetcher
-│   └── processors/           # NEW - Phase 2
-│       ├── __init__.py
-│       ├── llm.py            # Anthropic Claude client wrapper
-│       └── content.py        # Content processing logic
-├── pyproject.toml            # Package configuration
-├── README.md                 # User documentation
-├── PROJECT_PLAN.md           # Complete project roadmap
-├── DEMO.md                   # Demo walkthrough
-├── STATUS.md                 # This file
-├── QUICKSTART.md             # Quick reference guide
-├── DOCS_INDEX.md             # Documentation navigation
-├── test_fetch.py             # Test script for fetching
-├── test_process.py           # NEW - Test script for processing
-├── migrate_db_phase2.py      # NEW - Database migration script
-└── .gitignore
+│   │   ├── base.py        # BaseFetcher abstract class
+│   │   ├── arxiv.py       # Simple arXiv RSS
+│   │   ├── arxiv_advanced.py  # Advanced arXiv search
+│   │   └── semanticscholar.py # Semantic Scholar + citations
+│   └── processors/
+│       ├── llm.py         # LLM client (Anthropic)
+│       └── content.py     # Content processing
+├── migrations/            # Database migrations
+│   ├── migrate_db_phase2.py
+│   ├── migrate_db_phase3.py
+│   └── migrate_db_phase4.py
+├── tests/                 # Test suite
+├── docs/                  # Documentation archive
+├── README.md              # Main documentation
+├── PROJECT_PLAN.md        # Development roadmap
+├── STRUCTURE.md           # Architecture documentation
+└── STATUS.md              # This file
 ```
 
 ---
 
-## Dependencies
+## 🔧 Dependencies
 
-```toml
-feedparser>=6.0.10     # RSS feed parsing
-requests>=2.31.0       # HTTP requests
-rich>=13.7.0           # Terminal formatting
-sqlalchemy>=2.0.0      # Database ORM
-anthropic>=0.40.0      # NEW - Anthropic Claude API
-numpy>=1.24.0          # NEW - Numerical operations for embeddings
-# Note: Replaced Click with built-in argparse for simpler, more reliable CLI
-```
-
-**Dev dependencies** (optional):
-```toml
-pytest>=7.4.0          # Testing
-black>=23.0.0          # Code formatting
-ruff>=0.1.0            # Linting
-```
+Core packages:
+- `sqlalchemy` - Database ORM
+- `requests` - HTTP client
+- `feedparser` - RSS/Atom parsing
+- `rich` - Terminal formatting
+- `anthropic` - Claude API client
+- `numpy` - Vector operations
 
 ---
 
-## Phase 2 Completed! ✅
+## 🚀 Next Phase: Smart Recommendations (Phase 5)
 
-### What Was Added
-1. ✅ Anthropic Claude 3.5 Haiku integration
-2. ✅ Automatic summarization of abstracts
-3. ✅ Topic/keyword extraction
-4. ✅ Vector embeddings (placeholder for Phase 5)
-5. ✅ Batch processing pipeline
-6. ✅ New CLI commands (process, topics, find-by-topic, processing-stats)
-7. ✅ Database migration script
-
-### Key Features
-- **Smart Summarization**: 2-sentence summaries of research papers
-- **Topic Extraction**: Up to 5 key topics per article
-- **Batch Processing**: Process articles efficiently with progress tracking
-- **Topic Search**: Find articles by topic keywords
-- **Statistics**: Track processing progress
-
-### Files Created
-- `mindscout/processors/llm.py` - Claude API wrapper
-- `mindscout/processors/content.py` - Processing logic
-- `migrate_db_phase2.py` - Database migration
-- `test_process.py` - Processing test script
-
----
-
-## Next Steps (Phase 3)
-
-### Goals - Multi-Source Integration
-1. Semantic Scholar integration (with citation data!)
-2. Papers with Code integration (implementations & benchmarks)
-3. Hugging Face daily papers integration
-4. Base fetcher class for consistency
-5. Multi-source coordination and deduplication
-
-### New Features
-- Fetch papers with citation counts
-- Sort by most cited papers
-- Get implementation links from Papers with Code
-- Access Hugging Face community-curated papers
-- Unified interface across all sources
+### Planned Features
+- **Vector Database**: ChromaDB or Qdrant integration
+- **Semantic Search**: Find similar papers by content
+- **Enhanced Recommendations**: LLM-powered relevance scoring
+- **Feedback Learning**: Improve recommendations from ratings
+- **Weekly Digests**: Automated summaries
+- **Trending Topics**: Discover what's hot
 
 ### Estimated Time
-10-15 hours
+8-12 hours
 
 ---
 
-## Future: Phase 4 (formerly Phase 3)
+## 🎯 Current Capabilities
 
-### Goals - User Profile & Recommendations
-1. User profile configuration
-2. Interest tracking system
-3. Reading history analytics
-4. Basic recommendation algorithm
-5. Feedback mechanism (thumbs up/down)
-
-### Estimated Time
-8-10 hours
-
----
-
-## Configuration
-
-### Environment Variables
-```bash
-MINDSCOUT_DATA_DIR     # Data directory (default: ~/.mindscout)
-```
-
-### Future Config Needs (Phase 2+)
-```bash
-ANTHROPIC_API_KEY      # For Claude
-OPENAI_API_KEY         # For OpenAI
-MINDSCOUT_LLM_MODEL    # Model to use
-MINDSCOUT_MAX_COST     # Monthly cost limit
-```
+Mind Scout can now:
+1. ✅ Fetch papers from arXiv and Semantic Scholar
+2. ✅ Search by keywords, authors, date ranges, citations
+3. ✅ Process papers with AI (summarization, topic extraction)
+4. ✅ Learn your interests and preferences
+5. ✅ Recommend personalized papers with explanations
+6. ✅ Track reading habits and analytics
+7. ✅ Rate papers to improve recommendations
 
 ---
 
-## Testing
+## 💡 Configuration
 
-### Manual Testing Checklist
-- [x] Install package
-- [x] Fetch articles from arXiv
-- [x] List articles
-- [x] View article details
-- [x] Mark as read/unread
-- [x] View statistics
-- [ ] Automated tests (not yet implemented)
+**Environment Variables:**
+- `ANTHROPIC_API_KEY` - For AI features (optional)
+- `MINDSCOUT_DATA_DIR` - Data directory (default: `~/.mindscout/`)
 
-### Test Coverage Needed
-- [ ] Unit tests for fetchers
-- [ ] Unit tests for database operations
-- [ ] Integration tests for CLI
-- [ ] End-to-end workflow tests
+**Database Location:**
+- `~/.mindscout/mindscout.db`
 
 ---
 
-## Performance Notes
+## 🐛 Known Issues
 
-### Current Performance
-- Fetch from arXiv: ~2-5 seconds per category
-- List articles: <100ms
-- Database queries: <50ms (with 436 articles)
-
-### Expected Bottlenecks (Future)
-- LLM API calls (Phase 2): ~1-2 seconds per article
-- Vector search (Phase 5): Depends on DB size
-- Web UI (Phase 6): Network latency
+None! All major issues resolved:
+- ✅ Click framework replaced with argparse
+- ✅ Database migrations working smoothly
+- ✅ All commands functional
 
 ---
 
-## Git History
+## 📚 Documentation
 
-```bash
-# Initial commit with Phase 1 complete
-git log --oneline
-# (Ready for first commit)
-```
-
-### Recommended Git Workflow
-```bash
-# Initialize repo
-git init
-git add .
-git commit -m "Initial commit: Phase 1 complete - Basic content fetcher"
-
-# Tag the release
-git tag v0.1.0
-
-# Start Phase 2
-git checkout -b phase-2-content-processing
-```
+- **README.md** - User guide and command reference
+- **PROJECT_PLAN.md** - Full 6-phase development roadmap
+- **STRUCTURE.md** - Architecture and technical details
+- **STATUS.md** - This file (current state)
+- **migrations/README.md** - Migration guide
+- **tests/README.md** - Testing documentation
 
 ---
 
-## Portfolio Highlights
+## 🎓 Skills Demonstrated
 
-### What This Demonstrates
+**Current (Phases 1-4):**
+- API integration (arXiv, Semantic Scholar)
+- Database design and ORM (SQLAlchemy)
+- CLI development (argparse + Rich)
+- LLM integration (Anthropic Claude)
+- Recommendation algorithms
+- User modeling and personalization
+- Data analysis and analytics
 
-**Phase 1 Achievements**:
-- ✅ Clean project structure and modularity
-- ✅ Database design with ORM
-- ✅ API integration (RSS feeds)
-- ✅ CLI development with modern tools
-- ✅ User experience design (Rich formatting)
-- ✅ Package management (pyproject.toml)
-- ✅ Documentation and planning
-
-**Upcoming Skills** (Phase 2+):
-- LLM integration and prompt engineering
-- Vector embeddings and semantic search
-- Agentic architecture
-- Recommendation systems
-- Full-stack development (if Phase 6)
+**Upcoming (Phases 5-6):**
+- Vector databases (ChromaDB/Qdrant)
+- RAG (Retrieval-Augmented Generation)
+- FastAPI backend
+- React frontend
+- Full-stack deployment
 
 ---
 
-## Questions to Resolve
+## 📈 Progress Tracking
 
-### For Phase 2
-- [ ] Which LLM provider? (Claude Sonnet 4.5 vs GPT-4o vs Haiku for cost)
-- [ ] Embedding model? (text-embedding-3-small vs sentence-transformers)
-- [ ] Summary length? (1-2 sentences vs paragraph)
-- [ ] Processing frequency? (on-fetch vs batch vs on-demand)
+| Phase | Status | Time Spent | Notes |
+|-------|--------|------------|-------|
+| 1: Content Discovery | ✅ Complete | 5h | arXiv integration, CLI, database |
+| 2: AI Processing | ✅ Complete | 8h | LLM, topics, embeddings (placeholder) |
+| 3: Multi-Source | ✅ Complete | 10h | Semantic Scholar, citations, unified search |
+| 4: Recommendations | ✅ Complete | 12h | Profile, recommendations, ratings, insights |
+| 5: Smart Recs | ⏳ Next | Est. 10h | Vector DB, semantic search |
+| 6: Web UI | ⏳ Planned | Est. 15h | FastAPI + React |
 
-### For Later Phases
-- [ ] Vector DB choice? (ChromaDB vs Qdrant vs Pinecone)
-- [ ] Multi-user support? (if web UI)
-- [ ] Deployment platform? (fly.io, Railway, Vercel)
-
----
-
-## Useful Commands
-
-```bash
-# Development
-pip install -e .                    # Install in dev mode
-pip install -e ".[dev]"            # With dev dependencies
-
-# Usage
-mindscout --help                    # See all commands
-mindscout list --unread --limit 20 # View unread articles
-mindscout stats                     # Check your progress
-
-# Testing
-python test_fetch.py               # Test fetching
-python -c "from mindscout.database import get_session, Article; print(get_session().query(Article).count())"
-
-# Database
-ls -lh ~/.mindscout/               # Check DB size
-sqlite3 ~/.mindscout/mindscout.db ".schema"  # View schema
-```
+**Total**: ~35h invested, ~25h remaining
+**Completion**: 4 of 6 phases (67%)
 
 ---
 
-## Support & References
+**Status**: Production-ready CLI application with AI-powered recommendations! 🚀
 
-### Documentation Links
-- Project Plan: [PROJECT_PLAN.md](PROJECT_PLAN.md)
-- User Guide: [README.md](README.md)
-- Demo: [DEMO.md](DEMO.md)
-
-### External Resources
-- arXiv API: https://arxiv.org/help/api
-- Click docs: https://click.palletsprojects.com
-- Rich docs: https://rich.readthedocs.io
-- SQLAlchemy docs: https://docs.sqlalchemy.org
-
----
-
-## Notes
-
-- Database location: `~/.mindscout/mindscout.db`
-- Currently single-user system
-- All processing is local (no cloud dependencies yet)
-- Phase 1 designed for easy extension to multi-source, multi-agent system
-
-**Ready for Phase 2!** 🚀
+The core value proposition is complete - Mind Scout now provides personalized research paper recommendations based on your interests and reading history.

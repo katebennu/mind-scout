@@ -44,10 +44,10 @@ cd mind-scout
 # Install in development mode
 pip install -e .
 
-# Run migrations (if upgrading)
-python migrate_db_phase2.py
-python migrate_db_phase3.py
-python migrate_db_phase4.py
+# Run migrations (if upgrading from earlier version)
+python migrations/migrate_db_phase2.py
+python migrations/migrate_db_phase3.py
+python migrations/migrate_db_phase4.py
 ```
 
 ### Optional: AI Features Setup
@@ -417,6 +417,24 @@ Currently supported categories:
 - React-based web interface
 - Daily digest emails
 - Export functionality
+
+## Project Structure
+
+```
+mind-scout/
+├── mindscout/              # Main package
+│   ├── cli.py             # Command-line interface
+│   ├── database.py        # SQLAlchemy models
+│   ├── profile.py         # User profile management
+│   ├── recommender.py     # Recommendation engine
+│   ├── fetchers/          # Content fetchers (arXiv, Semantic Scholar)
+│   └── processors/        # AI processors (LLM, embeddings)
+├── migrations/            # Database migrations
+├── tests/                 # Test suite
+└── pyproject.toml         # Package configuration
+```
+
+See [STRUCTURE.md](STRUCTURE.md) for detailed architecture documentation.
 
 ## Development
 
