@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+from datetime import datetime
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -504,6 +505,239 @@ def cmd_clear(args):
         session.close()
 
 
+def cmd_profile(args):
+    """Manage user profile."""
+    from mindscout.profile import ProfileManager
+
+    manager = ProfileManager()
+
+    try:
+        if args.profile_command == 'show':
+            # Show profile summary
+            summary = manager.get_profile_summary()
+
+            panel_content = []
+            panel_content.append(f"[bold cyan]Skill Level:[/bold cyan] {summary['skill_level']}")
+            panel_content.append(f"[bold cyan]Daily Reading Goal:[/bold cyan] {summary['daily_reading_goal']} papers")
+
+            interests = summary['interests']
+            if interests:
+                panel_content.append(f"\n[bold cyan]Interests:[/bold cyan]")
+                for interest in interests:
+                    panel_content.append(f"  • {interest}")
+            else:
+                panel_content.append(f"\n[bold cyan]Interests:[/bold cyan] [dim]None set[/dim]")
+
+            sources = summary['preferred_sources']
+            panel_content.append(f"\n[bold cyan]Preferred Sources:[/bold cyan] {', '.join(sources)}")
+
+            panel_content.append(f"\n[dim]Last updated: {summary['updated_date'].strftime('%Y-%m-%d %H:%M')}[/dim]")
+
+            from rich.panel import Panel
+            console.print(Panel("\n".join(panel_content), title="Your Profile", border_style="cyan"))
+
+        elif args.profile_command == 'set-interests':
+            interests = [i.strip() for i in args.interests.split(",")]
+            manager.set_interests(interests)
+            console.print(f"[bold green]✓[/bold green] Set interests to: {', '.join(interests)}")
+
+        elif args.profile_command == 'add-interests':
+            interests = [i.strip() for i in args.interests.split(",")]
+            manager.add_interests(interests)
+            all_interests = manager.get_interests()
+            console.print(f"[bold green]✓[/bold green] Added interests. Current interests: {', '.join(all_interests)}")
+
+        elif args.profile_command == 'set-skill':
+            manager.set_skill_level(args.level)
+            console.print(f"[bold green]✓[/bold green] Set skill level to: {args.level}")
+
+        elif args.profile_command == 'set-sources':
+            sources = [s.strip() for s in args.sources.split(",")]
+            manager.set_preferred_sources(sources)
+            console.print(f"[bold green]✓[/bold green] Set preferred sources to: {', '.join(sources)}")
+
+        elif args.profile_command == 'set-goal':
+            manager.set_daily_goal(args.goal)
+            console.print(f"[bold green]✓[/bold green] Set daily reading goal to: {args.goal} papers")
+
+    finally:
+        manager.close()
+
+
+def cmd_rate(args):
+    """Rate an article."""
+    session = get_session()
+
+    try:
+        article = session.query(Article).filter_by(id=args.article_id).first()
+
+        if not article:
+            console.print(f"[bold red]Article {args.article_id} not found[/bold red]")
+            return
+
+        if args.rating < 1 or args.rating > 5:
+            console.print("[bold red]Rating must be between 1 and 5[/bold red]")
+            return
+
+        article.rating = args.rating
+        article.rated_date = datetime.utcnow()
+        session.commit()
+
+        stars = "★" * args.rating + "☆" * (5 - args.rating)
+        console.print(f"[bold green]✓[/bold green] Rated article {args.article_id}: {stars} ({args.rating}/5)")
+        console.print(f"[dim]{article.title[:80]}[/dim]")
+
+    except Exception as e:
+        session.rollback()
+        console.print(f"[bold red]Error:[/bold red] {e}")
+    finally:
+        session.close()
+
+
+def cmd_recommend(args):
+    """Get personalized recommendations."""
+    from mindscout.recommender import RecommendationEngine
+
+    engine = RecommendationEngine()
+
+    try:
+        recommendations = engine.get_recommendations(
+            limit=args.limit,
+            days_back=args.days,
+            unread_only=not args.include_read,
+        )
+
+        if not recommendations:
+            console.print("[yellow]No recommendations found. Try:[/yellow]")
+            console.print("  1. Set your interests: mindscout profile set-interests \"topic1, topic2\"")
+            console.print("  2. Fetch more articles: mindscout search ...")
+            console.print("  3. Process articles: mindscout process")
+            return
+
+        table = Table(
+            title=f"Recommended for You ({len(recommendations)} articles)",
+            show_header=True,
+            header_style="bold cyan",
+        )
+        table.add_column("ID", style="dim", width=6)
+        table.add_column("Score", width=6, justify="right")
+        table.add_column("Title", style="bold", min_width=40)
+        table.add_column("Reason", width=30)
+
+        for rec in recommendations:
+            article = rec["article"]
+            score_str = f"{rec['score']:.0%}"
+            reason = rec["reasons"][0] if rec["reasons"] else "Good match"
+
+            # Color code score
+            if rec["score"] >= 0.7:
+                score_str = f"[bold green]{score_str}[/bold green]"
+            elif rec["score"] >= 0.4:
+                score_str = f"[yellow]{score_str}[/yellow]"
+            else:
+                score_str = f"[dim]{score_str}[/dim]"
+
+            table.add_row(
+                str(article.id),
+                score_str,
+                article.title[:60],
+                reason[:30],
+            )
+
+        console.print(table)
+
+        if args.explain and recommendations:
+            console.print("\n[bold cyan]Showing details for top recommendation:[/bold cyan]")
+            top_rec = recommendations[0]
+            explanation = engine.explain_recommendation(top_rec["article"])
+
+            from rich.panel import Panel
+            panel_content = []
+            panel_content.append(f"[bold]Overall Score:[/bold] {explanation['overall_score']:.0%}")
+            panel_content.append(f"\n[bold]Why recommended:[/bold]")
+            for reason in explanation["reasons"]:
+                panel_content.append(f"  • {reason}")
+
+            panel_content.append(f"\n[bold]Score Breakdown:[/bold]")
+            panel_content.append(f"  Topic Match: {explanation['details']['topic_match']:.0%}")
+            panel_content.append(f"  Citations: {explanation['details']['citation_score']:.0%}")
+            panel_content.append(f"  Recency: {explanation['details']['recency']:.0%}")
+            panel_content.append(f"  Source: {explanation['details']['source_preference']:.0%}")
+            panel_content.append(f"  Has Code: {'Yes' if explanation['details']['has_code'] else 'No'}")
+
+            console.print(Panel("\n".join(panel_content), title=f"Article {top_rec['article'].id}", border_style="cyan"))
+
+    finally:
+        engine.close()
+
+
+def cmd_insights(args):
+    """Show reading insights and analytics."""
+    session = get_session()
+
+    try:
+        from mindscout.profile import ProfileManager
+        manager = ProfileManager()
+
+        # Get profile
+        profile = manager.get_or_create_profile()
+
+        # Calculate stats
+        total_articles = session.query(Article).count()
+        read_count = session.query(Article).filter_by(is_read=True).count()
+        rated_count = session.query(Article).filter(Article.rating.isnot(None)).count()
+
+        # Get rating breakdown
+        from sqlalchemy import func
+        rating_dist = session.query(
+            Article.rating,
+            func.count(Article.id)
+        ).filter(
+            Article.rating.isnot(None)
+        ).group_by(Article.rating).all()
+
+        # Get source breakdown for read articles
+        source_dist = session.query(
+            Article.source,
+            func.count(Article.id)
+        ).filter(
+            Article.is_read == True
+        ).group_by(Article.source).all()
+
+        # Display insights
+        table = Table(title="Your Reading Insights", show_header=True, header_style="bold cyan")
+        table.add_column("Metric", style="bold")
+        table.add_column("Value", justify="right")
+
+        table.add_row("Total Articles in Library", str(total_articles))
+        table.add_row("Articles Read", f"[green]{read_count}[/green]")
+        table.add_row("Articles Rated", str(rated_count))
+
+        if total_articles > 0:
+            read_pct = (read_count / total_articles) * 100
+            table.add_row("Read Percentage", f"{read_pct:.1f}%")
+
+        table.add_row("", "")
+        table.add_row("Daily Reading Goal", str(profile.daily_reading_goal))
+
+        console.print(table)
+
+        if rating_dist:
+            console.print("\n[bold cyan]Rating Distribution:[/bold cyan]")
+            for rating, count in sorted(rating_dist):
+                stars = "★" * int(rating)
+                console.print(f"  {stars}: {count} articles")
+
+        if source_dist:
+            console.print("\n[bold cyan]Read Articles by Source:[/bold cyan]")
+            for source, count in source_dist:
+                console.print(f"  {source}: {count} articles")
+
+    finally:
+        session.close()
+        manager.close()
+
+
 def main():
     """Main entry point for Mind Scout CLI."""
     # Initialize database
@@ -617,6 +851,53 @@ def main():
     parser_clear = subparsers.add_parser('clear', help='Clear all articles from database')
     parser_clear.add_argument('-f', '--force', action='store_true', help='Skip confirmation prompt')
     parser_clear.set_defaults(func=cmd_clear)
+
+    # profile command (Phase 4)
+    parser_profile = subparsers.add_parser('profile', help='Manage your user profile')
+    profile_subparsers = parser_profile.add_subparsers(dest='profile_command', required=True)
+
+    # profile show
+    profile_show = profile_subparsers.add_parser('show', help='Show your profile')
+
+    # profile set-interests
+    profile_set_int = profile_subparsers.add_parser('set-interests', help='Set your interests (replaces existing)')
+    profile_set_int.add_argument('interests', help='Comma-separated list of topics (e.g., "transformers, RL, NLP")')
+
+    # profile add-interests
+    profile_add_int = profile_subparsers.add_parser('add-interests', help='Add interests (keeps existing)')
+    profile_add_int.add_argument('interests', help='Comma-separated list of topics to add')
+
+    # profile set-skill
+    profile_set_skill = profile_subparsers.add_parser('set-skill', help='Set your skill level')
+    profile_set_skill.add_argument('level', choices=['beginner', 'intermediate', 'advanced'], help='Skill level')
+
+    # profile set-sources
+    profile_set_src = profile_subparsers.add_parser('set-sources', help='Set preferred sources')
+    profile_set_src.add_argument('sources', help='Comma-separated list (e.g., "arxiv,semanticscholar")')
+
+    # profile set-goal
+    profile_set_goal = profile_subparsers.add_parser('set-goal', help='Set daily reading goal')
+    profile_set_goal.add_argument('goal', type=int, help='Number of papers to read per day')
+
+    parser_profile.set_defaults(func=cmd_profile)
+
+    # rate command (Phase 4)
+    parser_rate = subparsers.add_parser('rate', help='Rate an article (1-5 stars)')
+    parser_rate.add_argument('article_id', type=int, help='Article ID')
+    parser_rate.add_argument('rating', type=int, help='Rating (1-5 stars)')
+    parser_rate.set_defaults(func=cmd_rate)
+
+    # recommend command (Phase 4)
+    parser_rec = subparsers.add_parser('recommend', help='Get personalized recommendations')
+    parser_rec.add_argument('-n', '--limit', type=int, default=10, help='Number of recommendations (default: 10)')
+    parser_rec.add_argument('-d', '--days', type=int, default=30, help='Look back N days (default: 30)')
+    parser_rec.add_argument('--include-read', action='store_true', help='Include already-read articles')
+    parser_rec.add_argument('--explain', action='store_true', help='Show detailed explanation for top recommendation')
+    parser_rec.set_defaults(func=cmd_recommend)
+
+    # insights command (Phase 4)
+    parser_insights = subparsers.add_parser('insights', help='Show reading insights and analytics')
+    parser_insights.set_defaults(func=cmd_insights)
 
     # Parse arguments
     args = parser.parse_args()

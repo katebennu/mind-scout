@@ -60,8 +60,32 @@ class Article(Base):
     # Community engagement (from Hugging Face)
     hf_upvotes = Column(Integer)
 
+    # Phase 4: User feedback and recommendations
+    rating = Column(Integer)  # 1-5 star rating, null if not rated
+    rated_date = Column(DateTime)  # When user rated this article
+
     def __repr__(self):
         return f"<Article {self.source_id}: {self.title[:50]}>"
+
+
+class UserProfile(Base):
+    """User profile for personalized recommendations."""
+
+    __tablename__ = "user_profile"
+
+    id = Column(Integer, primary_key=True)
+    # User preferences
+    interests = Column(Text)  # Comma-separated topics of interest
+    skill_level = Column(String)  # beginner, intermediate, advanced
+    preferred_sources = Column(Text)  # Comma-separated source preferences
+    # Reading behavior
+    daily_reading_goal = Column(Integer)  # Papers per day
+    # Metadata
+    created_date = Column(DateTime, default=datetime.utcnow)
+    updated_date = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<UserProfile skill_level={self.skill_level}>"
 
 
 # Database engine and session

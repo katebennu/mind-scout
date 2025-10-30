@@ -1,0 +1,235 @@
+"""Recommendation engine for personalized article suggestions."""
+
+import json
+from typing import List, Dict, Optional
+from datetime import datetime, timedelta
+from sqlalchemy import and_, or_
+from mindscout.database import get_session, Article
+from mindscout.profile import ProfileManager
+
+
+class RecommendationEngine:
+    """Generate personalized article recommendations."""
+
+    def __init__(self):
+        """Initialize recommendation engine."""
+        self.session = get_session()
+        self.profile_manager = ProfileManager()
+
+    def get_recommendations(
+        self,
+        limit: int = 10,
+        days_back: int = 30,
+        min_score: float = 0.1,
+        unread_only: bool = True,
+    ) -> List[Dict]:
+        """Get personalized article recommendations.
+
+        Args:
+            limit: Maximum number of recommendations
+            days_back: Only consider articles from last N days
+            min_score: Minimum recommendation score (0-1)
+            unread_only: Only recommend unread articles
+
+        Returns:
+            List of article dictionaries with scores and reasons
+        """
+        profile = self.profile_manager.get_or_create_profile()
+        interests = self.profile_manager.get_interests()
+
+        # Build query for candidate articles
+        query = self.session.query(Article)
+
+        # Filter by date
+        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+        query = query.filter(Article.fetched_date >= cutoff_date)
+
+        # Filter by read status
+        if unread_only:
+            query = query.filter(Article.is_read == False)
+
+        # Get all candidates
+        candidates = query.all()
+
+        # Score each article
+        scored_articles = []
+        for article in candidates:
+            score, reasons = self._score_article(article, interests, profile)
+
+            if score >= min_score:
+                scored_articles.append({
+                    "article": article,
+                    "score": score,
+                    "reasons": reasons,
+                })
+
+        # Sort by score (descending) and limit
+        scored_articles.sort(key=lambda x: x["score"], reverse=True)
+
+        return scored_articles[:limit]
+
+    def _score_article(
+        self,
+        article: Article,
+        interests: List[str],
+        profile
+    ) -> tuple[float, List[str]]:
+        """Score an article based on user profile.
+
+        Args:
+            article: Article to score
+            interests: User interests
+            profile: User profile
+
+        Returns:
+            Tuple of (score, reasons) where score is 0-1 and reasons is a list of strings
+        """
+        score = 0.0
+        reasons = []
+
+        # 1. Topic matching (40% weight)
+        topic_score = self._score_topics(article, interests)
+        if topic_score > 0:
+            score += topic_score * 0.4
+            reasons.append(f"Matches your interests ({topic_score:.0%})")
+
+        # 2. Citation count (25% weight)
+        citation_score = self._score_citations(article)
+        if citation_score > 0:
+            score += citation_score * 0.25
+            reasons.append(f"High impact ({int(article.citation_count or 0)} citations)")
+
+        # 3. Source preference (15% weight)
+        source_score = self._score_source(article, profile)
+        if source_score > 0:
+            score += source_score * 0.15
+            if source_score == 1.0:
+                reasons.append("From preferred source")
+
+        # 4. Recency (10% weight)
+        recency_score = self._score_recency(article)
+        score += recency_score * 0.10
+        if recency_score > 0.8:
+            reasons.append("Recently published")
+
+        # 5. Has implementation (10% weight)
+        if article.has_implementation and article.github_url:
+            score += 0.10
+            reasons.append("Has code implementation")
+
+        return min(score, 1.0), reasons
+
+    def _score_topics(self, article: Article, interests: List[str]) -> float:
+        """Score article based on topic matching.
+
+        Returns:
+            Score between 0 and 1
+        """
+        if not interests or not article.topics:
+            return 0.0
+
+        try:
+            # Parse article topics
+            article_topics = json.loads(article.topics) if article.topics else []
+        except (json.JSONDecodeError, TypeError):
+            # Fallback to categories if topics not available
+            if article.categories:
+                article_topics = [c.strip() for c in article.categories.split(",")]
+            else:
+                return 0.0
+
+        # Convert to lowercase for matching
+        article_topics_lower = [t.lower() for t in article_topics]
+        interests_lower = [i.lower() for i in interests]
+
+        # Count matches
+        matches = sum(
+            1 for interest in interests_lower
+            if any(interest in topic or topic in interest for topic in article_topics_lower)
+        )
+
+        # Normalize by number of interests
+        return min(matches / len(interests), 1.0) if interests else 0.0
+
+    def _score_citations(self, article: Article) -> float:
+        """Score article based on citation count.
+
+        Returns:
+            Score between 0 and 1
+        """
+        if not article.citation_count:
+            return 0.0
+
+        # Logarithmic scaling: 10 citations = 0.5, 100 = 0.75, 1000 = 1.0
+        import math
+        score = math.log10(max(article.citation_count, 1)) / 3.0
+        return min(score, 1.0)
+
+    def _score_source(self, article: Article, profile) -> float:
+        """Score article based on source preference.
+
+        Returns:
+            Score between 0 and 1
+        """
+        if not profile.preferred_sources:
+            return 0.5  # Neutral if no preference
+
+        preferred = profile.preferred_sources.split(",")
+        return 1.0 if article.source in preferred else 0.0
+
+    def _score_recency(self, article: Article) -> float:
+        """Score article based on how recent it is.
+
+        Returns:
+            Score between 0 and 1
+        """
+        if not article.published_date:
+            return 0.5  # Neutral if no date
+
+        # Days old
+        age_days = (datetime.utcnow() - article.published_date).days
+
+        # Score: 1.0 for today, 0.5 for 30 days, 0.0 for 90+ days
+        if age_days < 7:
+            return 1.0
+        elif age_days < 30:
+            return 0.8
+        elif age_days < 60:
+            return 0.5
+        elif age_days < 90:
+            return 0.3
+        else:
+            return 0.1
+
+    def explain_recommendation(self, article: Article) -> Dict:
+        """Explain why an article is recommended.
+
+        Args:
+            article: Article to explain
+
+        Returns:
+            Dictionary with detailed scoring breakdown
+        """
+        profile = self.profile_manager.get_or_create_profile()
+        interests = self.profile_manager.get_interests()
+
+        score, reasons = self._score_article(article, interests, profile)
+
+        return {
+            "article_id": article.id,
+            "title": article.title,
+            "overall_score": score,
+            "reasons": reasons,
+            "details": {
+                "topic_match": self._score_topics(article, interests),
+                "citation_score": self._score_citations(article),
+                "source_preference": self._score_source(article, profile),
+                "recency": self._score_recency(article),
+                "has_code": article.has_implementation,
+            }
+        }
+
+    def close(self):
+        """Close database sessions."""
+        self.session.close()
+        self.profile_manager.close()
