@@ -6,25 +6,34 @@ Mind Scout uses agentic workflows to discover, process, and recommend AI researc
 
 ## Features
 
-### Phase 1: Content Discovery ✅
-- 📚 **Fetch articles** from arXiv across multiple AI categories
-- 💾 **Local storage** with SQLite for all your articles
-- 📖 **Track reading status** - mark articles as read/unread
-- 🎨 **Beautiful CLI** with rich formatting and tables
-- 📊 **Statistics** about your collection
+### 📚 Multi-Source Content Discovery
+- **arXiv integration** - Fetch latest papers across AI categories (cs.AI, cs.LG, cs.CV, cs.CL)
+- **Semantic Scholar** - Access citation data and find most-cited papers
+- **Advanced search** - Filter by date, author, keywords, citations, and more
+- **Beautiful CLI** - Rich terminal formatting with tables and panels
 
-### Phase 2: AI-Powered Analysis ✅
-- 🤖 **Smart summarization** with Claude 3.5 Haiku
-- 🏷️ **Automatic topic extraction** from papers
-- 🔍 **Topic-based search** to find relevant articles
-- 📈 **Processing analytics** and progress tracking
-- 💾 **Vector embeddings** (foundation for Phase 5 semantic search)
+### 🤖 AI-Powered Intelligence
+- **Smart summarization** - Claude 3.5 Haiku generates concise summaries
+- **Automatic topic extraction** - AI identifies key topics and themes
+- **Topic-based search** - Find papers by research area
+- **Vector embeddings** - Foundation for semantic similarity (Phase 5)
 
-### Phase 3: Multi-Source Integration ✅ NEW!
-- 📊 **Semantic Scholar** - Citation counts and metrics
-- 🎯 **Citation-based search** - Find most cited papers
-- 📚 **Multiple academic sources** in one place
-- 🔢 **Impact tracking** with influential citation metrics
+### 🎯 Personalized Recommendations
+- **User profiles** - Set your interests, skill level, and preferences
+- **Smart recommendations** - Multi-factor scoring algorithm:
+  - Topic matching with your interests (40%)
+  - Citation impact and influence (25%)
+  - Source preferences (15%)
+  - Publication recency (10%)
+  - Code availability bonus (10%)
+- **Explainable AI** - See why each paper is recommended
+- **Article ratings** - Rate papers 1-5 stars to improve recommendations
+
+### 📊 Reading Analytics
+- **Reading insights** - Track your reading habits and progress
+- **Rating distribution** - See your rating patterns
+- **Source breakdown** - Understand where you read from most
+- **Daily goals** - Set and track reading targets
 
 ## Installation
 
@@ -35,16 +44,15 @@ cd mind-scout
 # Install in development mode
 pip install -e .
 
-# (Optional) If upgrading from Phase 1, migrate database
+# Run migrations (if upgrading)
 python migrate_db_phase2.py
-
-# (Optional) If upgrading to Phase 3, migrate database
 python migrate_db_phase3.py
+python migrate_db_phase4.py
 ```
 
-### Phase 2 Setup (Optional)
+### Optional: AI Features Setup
 
-To use AI-powered features, you need an Anthropic API key:
+To use AI-powered features (summarization, topic extraction), you need an Anthropic API key:
 
 1. Get a key from https://console.anthropic.com/
 2. Set environment variable:
@@ -54,61 +62,97 @@ export ANTHROPIC_API_KEY='your-api-key-here'
 
 ## Quick Start
 
-### Basic Usage (Phase 1)
+### 1. Set Up Your Profile
+
+Tell Mind Scout what you're interested in:
 
 ```bash
-# Fetch latest articles from arXiv
-mindscout fetch
+# Set your research interests
+mindscout profile set-interests "transformers, reinforcement learning, computer vision"
 
-# Fetch from specific categories
-mindscout fetch -c cs.CV -c cs.AI
+# Set your skill level
+mindscout profile set-skill advanced
 
-# List unread articles
-mindscout list --unread
-
-# Show details of a specific article
-mindscout show 1
-
-# Mark article as read
-mindscout read 1
-
-# View your statistics
-mindscout stats
+# View your profile
+mindscout profile show
 ```
 
-### AI-Powered Features (Phase 2)
+### 2. Discover Papers
+
+Fetch papers from multiple sources:
 
 ```bash
-# Process articles with Claude (requires API key)
+# Quick fetch from arXiv (latest papers)
+mindscout fetch -c cs.AI -c cs.LG
+
+# Advanced search: Papers from last 30 days
+mindscout search -k "large language models" --last-days 30
+
+# Find high-impact papers (Semantic Scholar)
+mindscout search --source semanticscholar -q "diffusion models" --min-citations 100 -n 20
+
+# Filter by year and citations
+mindscout search --source semanticscholar -q "GPT" --year 2024
+```
+
+### 3. Get Personalized Recommendations
+
+Let Mind Scout suggest papers based on your interests:
+
+```bash
+# Get top 10 recommendations
+mindscout recommend
+
+# Get recommendations with detailed explanations
+mindscout recommend --explain
+
+# Include papers from last 60 days
+mindscout recommend -d 60 -n 15
+```
+
+### 4. Read and Rate Papers
+
+Track what you've read and rate papers:
+
+```bash
+# List unread articles
+mindscout list --unread -n 20
+
+# View article details (with citations if available)
+mindscout show 5
+
+# Mark as read
+mindscout read 5
+
+# Rate the paper (1-5 stars)
+mindscout rate 5 4
+```
+
+### 5. Process with AI (Optional)
+
+Use Claude to extract insights:
+
+```bash
+# Process articles for topic extraction
 mindscout process --limit 10
 
 # View discovered topics
 mindscout topics
 
 # Find articles by topic
-mindscout find-by-topic "transformer"
-
-# Check processing progress
-mindscout processing-stats
+mindscout find-by-topic "attention mechanism"
 ```
 
-### Multi-Source Search (Phase 3)
+### 6. Track Your Progress
+
+View your reading analytics:
 
 ```bash
-# Search Semantic Scholar for most cited papers
-mindscout search --source semanticscholar -q "large language models" -n 20
+# See your reading insights
+mindscout insights
 
-# Filter by year and minimum citations
-mindscout search --source semanticscholar -q "transformers" --year 2024 --min-citations 100
-
-# Sort by publication date instead of citations
-mindscout search --source semanticscholar -q "GPT-4" --ss-sort publicationDate:desc
-
-# arXiv search still works (default source)
-mindscout search -k "vision transformers" --last-days 30
-
-# View citation data for articles
-mindscout show 1  # Shows citation counts if available
+# View collection statistics
+mindscout stats
 ```
 
 ## Commands
@@ -184,7 +228,7 @@ mindscout list -s semanticscholar  # Show only Semantic Scholar articles
 ```
 
 ### `mindscout show <article_id>`
-Display full details of a specific article including abstract, and citation data if available (Phase 3).
+Display full details of a specific article including abstract and citation data if available.
 
 Example:
 ```bash
@@ -200,8 +244,8 @@ Mark an article as unread.
 ### `mindscout stats`
 Show statistics about your article collection, including source breakdown (arXiv, Semantic Scholar, etc.).
 
-### `mindscout process` (Phase 2)
-Process articles with LLM for summarization and topic extraction.
+### `mindscout process`
+Process articles with LLM for summarization and topic extraction (requires Anthropic API key).
 
 Options:
 - `--limit N`: Process at most N articles
@@ -212,10 +256,10 @@ Example:
 mindscout process --limit 10
 ```
 
-### `mindscout topics` (Phase 2)
+### `mindscout topics`
 Show all discovered topics from processed articles.
 
-### `mindscout find-by-topic <topic>` (Phase 2)
+### `mindscout find-by-topic <topic>`
 Find articles matching a specific topic.
 
 Options:
@@ -226,8 +270,79 @@ Example:
 mindscout find-by-topic "reinforcement learning"
 ```
 
-### `mindscout processing-stats` (Phase 2)
+### `mindscout processing-stats`
 Show processing progress and statistics.
+
+### `mindscout profile`
+Manage your user profile and preferences.
+
+Subcommands:
+- `show` - Display your current profile
+- `set-interests <topics>` - Set interests (comma-separated)
+- `add-interests <topics>` - Add interests without removing existing
+- `set-skill <level>` - Set skill level (beginner/intermediate/advanced)
+- `set-sources <sources>` - Set preferred sources (comma-separated)
+- `set-goal <number>` - Set daily reading goal
+
+Examples:
+```bash
+# View profile
+mindscout profile show
+
+# Set interests
+mindscout profile set-interests "transformers, RL, NLP"
+
+# Add more interests
+mindscout profile add-interests "computer vision, GANs"
+
+# Set skill level
+mindscout profile set-skill advanced
+
+# Set daily goal
+mindscout profile set-goal 10
+```
+
+### `mindscout recommend`
+Get personalized article recommendations based on your profile.
+
+Options:
+- `-n, --limit`: Number of recommendations (default: 10)
+- `-d, --days`: Look back N days (default: 30)
+- `--include-read`: Include already-read articles
+- `--explain`: Show detailed explanation for top recommendation
+
+Examples:
+```bash
+# Get top 10 recommendations
+mindscout recommend
+
+# Get 20 recommendations from last 60 days
+mindscout recommend -n 20 -d 60
+
+# Get recommendations with explanation
+mindscout recommend --explain
+```
+
+### `mindscout rate <article_id> <rating>`
+Rate an article from 1-5 stars.
+
+Example:
+```bash
+# Rate article 42 as 5 stars
+mindscout rate 42 5
+```
+
+### `mindscout insights`
+Show reading insights and analytics including:
+- Total articles, read count, and read percentage
+- Articles rated and rating distribution
+- Source breakdown for read articles
+- Daily reading goal progress
+
+Example:
+```bash
+mindscout insights
+```
 
 ### `mindscout clear`
 Clear all articles from the database.
@@ -276,24 +391,29 @@ Currently supported categories:
 - ✅ Vector embeddings for semantic search (placeholder)
 - ✅ Topic-based article search
 
-### Phase 3: Multi-Source Integration 🚧 IN PROGRESS
+### Phase 3: Multi-Source Integration ✅ COMPLETE
 - ✅ Semantic Scholar integration with citation data
 - ✅ Citation-based search and sorting
-- 🚧 Papers with Code (implementation links)
-- 🚧 Hugging Face (community engagement metrics)
-- ⏳ Cross-source deduplication
+- ✅ Unified search command across sources
+- ⏳ Papers with Code (implementation links) - deferred
+- ⏳ Hugging Face (community engagement metrics) - deferred
 
-### Phase 4: User Profile & Recommendations (Next)
-- User profile and interests
-- Basic recommendations
-- Learning from feedback
+### Phase 4: User Profile & Recommendations ✅ COMPLETE
+- ✅ User profile with interests and preferences
+- ✅ Multi-factor recommendation algorithm
+- ✅ Article rating system (1-5 stars)
+- ✅ Reading insights and analytics
+- ✅ Explainable recommendations
 
-### Phase 5: Smart Recommendations
+### Phase 5: Smart Recommendations (Next)
+- Vector database integration (ChromaDB/Qdrant)
 - Semantic similarity search
 - LLM-powered relevance scoring
-- Adaptive learning
+- Adaptive learning from feedback
+- Weekly digest generation
 
 ### Phase 6: Web UI & Polish
+- FastAPI backend
 - React-based web interface
 - Daily digest emails
 - Export functionality
