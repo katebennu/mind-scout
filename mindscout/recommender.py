@@ -87,32 +87,44 @@ class RecommendationEngine:
         score = 0.0
         reasons = []
 
-        # 1. Topic matching (40% weight)
+        # 1. Topic matching (35% weight)
         topic_score = self._score_topics(article, interests)
         if topic_score > 0:
-            score += topic_score * 0.4
+            score += topic_score * 0.35
             reasons.append(f"Matches your interests ({topic_score:.0%})")
 
-        # 2. Citation count (25% weight)
+        # 2. Citation count (20% weight)
         citation_score = self._score_citations(article)
         if citation_score > 0:
-            score += citation_score * 0.25
+            score += citation_score * 0.20
             reasons.append(f"High impact ({int(article.citation_count or 0)} citations)")
 
-        # 3. Source preference (15% weight)
+        # 3. Skill level match (15% weight)
+        skill_score = self._score_skill_match(article, profile)
+        if skill_score > 0.6:  # Only mention if notably relevant
+            score += skill_score * 0.15
+            if profile.skill_level:
+                if profile.skill_level.lower() == 'beginner' and skill_score > 0.8:
+                    reasons.append("Good for beginners")
+                elif profile.skill_level.lower() == 'advanced' and skill_score > 0.8:
+                    reasons.append("Cutting-edge research")
+        else:
+            score += skill_score * 0.15
+
+        # 4. Source preference (10% weight)
         source_score = self._score_source(article, profile)
         if source_score > 0:
-            score += source_score * 0.15
+            score += source_score * 0.10
             if source_score == 1.0:
                 reasons.append("From preferred source")
 
-        # 4. Recency (10% weight)
+        # 5. Recency (10% weight)
         recency_score = self._score_recency(article)
         score += recency_score * 0.10
         if recency_score > 0.8:
             reasons.append("Recently published")
 
-        # 5. Has implementation (10% weight)
+        # 6. Has implementation (10% weight)
         if article.has_implementation and article.github_url:
             score += 0.10
             reasons.append("Has code implementation")
@@ -201,6 +213,105 @@ class RecommendationEngine:
         else:
             return 0.1
 
+    def _score_skill_match(self, article: Article, profile) -> float:
+        """Score article based on skill level match.
+
+        Uses heuristics to estimate paper difficulty and match to user skill level:
+        - Beginner: Prefers surveys, tutorials, well-cited foundational papers
+        - Intermediate: No strong preference (neutral scoring)
+        - Advanced: Prefers recent, cutting-edge, high-impact research
+
+        Args:
+            article: Article to score
+            profile: User profile
+
+        Returns:
+            Score between 0 and 1
+        """
+        if not profile.skill_level:
+            return 0.5  # Neutral if not set
+
+        skill = profile.skill_level.lower()
+
+        # Keywords indicating beginner-friendly content
+        beginner_keywords = [
+            'survey', 'review', 'introduction', 'tutorial', 'overview',
+            'primer', 'guide', 'fundamentals', 'basics', 'introduction to'
+        ]
+
+        # Combine title and abstract for keyword matching
+        text = f"{article.title} {article.abstract or ''}".lower()
+
+        # Calculate paper age
+        age_days = None
+        if article.published_date:
+            age_days = (datetime.utcnow() - article.published_date).days
+
+        # Beginner: Prefer educational content and well-established papers
+        if skill == 'beginner':
+            # Check for beginner-friendly keywords
+            if any(keyword in text for keyword in beginner_keywords):
+                return 1.0  # Perfect match for tutorials/surveys
+
+            # Prefer well-cited papers (established, likely well-explained)
+            if article.citation_count:
+                if article.citation_count > 500:
+                    return 0.9  # Very well established
+                elif article.citation_count > 100:
+                    return 0.8  # Well established
+                elif article.citation_count > 50:
+                    return 0.6
+
+            # Boost papers with implementations (hands-on learning)
+            if article.has_implementation:
+                return 0.7
+
+            # Slightly penalize very recent papers (less likely to be foundational)
+            if age_days and age_days < 90:
+                return 0.4
+
+            return 0.5  # Neutral for other papers
+
+        # Intermediate: No strong bias, slight preference for balance
+        elif skill == 'intermediate':
+            # Slight boost for papers 1-2 years old (current but not bleeding edge)
+            if age_days:
+                if 180 < age_days < 730:  # 6 months to 2 years
+                    return 0.7
+
+            # Moderate citation count is good
+            if article.citation_count:
+                if 50 < article.citation_count < 500:
+                    return 0.6
+
+            return 0.5  # Neutral default
+
+        # Advanced: Prefer cutting-edge, high-impact research
+        elif skill == 'advanced':
+            # Strong preference for very recent papers
+            if age_days:
+                if age_days < 90:
+                    return 1.0  # Last 3 months
+                elif age_days < 180:
+                    return 0.9  # Last 6 months
+                elif age_days < 365:
+                    return 0.7  # Last year
+
+            # High citation count indicates important work
+            if article.citation_count:
+                if article.citation_count > 1000:
+                    return 1.0  # Seminal paper
+                elif article.citation_count > 500:
+                    return 0.9  # High impact
+
+            # Penalize tutorials/surveys (advanced users want novel research)
+            if any(keyword in text for keyword in beginner_keywords):
+                return 0.2
+
+            return 0.5  # Neutral for moderate papers
+
+        return 0.5  # Default neutral
+
     def explain_recommendation(self, article: Article) -> Dict:
         """Explain why an article is recommended.
 
@@ -223,6 +334,7 @@ class RecommendationEngine:
             "details": {
                 "topic_match": self._score_topics(article, interests),
                 "citation_score": self._score_citations(article),
+                "skill_level_match": self._score_skill_match(article, profile),
                 "source_preference": self._score_source(article, profile),
                 "recency": self._score_recency(article),
                 "has_code": article.has_implementation,

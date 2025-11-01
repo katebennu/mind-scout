@@ -22,11 +22,16 @@ Mind Scout uses agentic workflows to discover, process, and recommend AI researc
 ### 🎯 Personalized Recommendations
 - **User profiles** - Set your interests, skill level, and preferences
 - **Smart recommendations** - Multi-factor scoring algorithm:
-  - Topic matching with your interests (40%)
-  - Citation impact and influence (25%)
-  - Source preferences (15%)
+  - Topic matching with your interests (35%)
+  - Citation impact and influence (20%)
+  - Skill level matching (15%)
+  - Source preferences (10%)
   - Publication recency (10%)
   - Code availability bonus (10%)
+- **Skill-adaptive filtering** - Recommendations tailored to your experience:
+  - **Beginner**: Surveys, tutorials, well-established papers with implementations
+  - **Intermediate**: Balanced mix of foundational and recent research
+  - **Advanced**: Cutting-edge research, high-impact papers, novel contributions
 - **Semantic recommendations** - Find papers using vector similarity:
   - Match papers to your interests semantically
   - Discover papers similar to ones you rated highly

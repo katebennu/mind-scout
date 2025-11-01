@@ -661,6 +661,7 @@ def cmd_recommend(args):
             panel_content.append(f"\n[bold]Score Breakdown:[/bold]")
             panel_content.append(f"  Topic Match: {explanation['details']['topic_match']:.0%}")
             panel_content.append(f"  Citations: {explanation['details']['citation_score']:.0%}")
+            panel_content.append(f"  Skill Match: {explanation['details']['skill_level_match']:.0%}")
             panel_content.append(f"  Recency: {explanation['details']['recency']:.0%}")
             panel_content.append(f"  Source: {explanation['details']['source_preference']:.0%}")
             panel_content.append(f"  Has Code: {'Yes' if explanation['details']['has_code'] else 'No'}")
