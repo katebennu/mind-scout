@@ -16,7 +16,8 @@ Mind Scout uses agentic workflows to discover, process, and recommend AI researc
 - **Smart summarization** - Claude 3.5 Haiku generates concise summaries
 - **Automatic topic extraction** - AI identifies key topics and themes
 - **Topic-based search** - Find papers by research area
-- **Vector embeddings** - Foundation for semantic similarity (Phase 5)
+- **Semantic search** - Natural language queries to find relevant papers
+- **Similarity matching** - Find papers similar to ones you like
 
 ### 🎯 Personalized Recommendations
 - **User profiles** - Set your interests, skill level, and preferences
@@ -26,6 +27,9 @@ Mind Scout uses agentic workflows to discover, process, and recommend AI researc
   - Source preferences (15%)
   - Publication recency (10%)
   - Code availability bonus (10%)
+- **Semantic recommendations** - Find papers using vector similarity:
+  - Match papers to your interests semantically
+  - Discover papers similar to ones you rated highly
 - **Explainable AI** - See why each paper is recommended
 - **Article ratings** - Rate papers 1-5 stars to improve recommendations
 
@@ -48,6 +52,9 @@ pip install -e .
 python migrations/migrate_db_phase2.py
 python migrations/migrate_db_phase3.py
 python migrations/migrate_db_phase4.py
+
+# For semantic search features, index your articles
+mindscout index
 ```
 
 ### Optional: AI Features Setup
@@ -143,7 +150,22 @@ mindscout topics
 mindscout find-by-topic "attention mechanism"
 ```
 
-### 6. Track Your Progress
+### 6. Use Semantic Search
+
+Find papers using natural language and similarity:
+
+```bash
+# Index articles for semantic search (run once, or after fetching new papers)
+mindscout index
+
+# Search using natural language
+mindscout semantic-search "attention mechanisms in transformers" -n 10
+
+# Find papers similar to one you liked
+mindscout similar 42 -n 5
+```
+
+### 7. Track Your Progress
 
 View your reading analytics:
 
@@ -344,6 +366,63 @@ Example:
 mindscout insights
 ```
 
+### `mindscout index`
+Index articles in the vector database for semantic search.
+
+Options:
+- `-n, --limit`: Index only N articles (useful for testing)
+- `-f, --force`: Re-index articles that are already indexed
+
+Examples:
+```bash
+# Index all articles
+mindscout index
+
+# Index only 50 articles (for testing)
+mindscout index -n 50
+
+# Re-index all articles
+mindscout index --force
+```
+
+**Note:** Run this after fetching new articles to enable semantic search on them. Initial indexing may take a few minutes depending on the number of articles.
+
+### `mindscout similar <article_id>`
+Find articles semantically similar to a given article.
+
+Options:
+- `-n, --limit`: Number of similar articles to show (default: 10)
+- `--min-similarity`: Minimum similarity score 0-1 (default: 0.3)
+
+Examples:
+```bash
+# Find 5 articles similar to article 42
+mindscout similar 42 -n 5
+
+# Find similar articles with at least 50% similarity
+mindscout similar 42 --min-similarity 0.5
+```
+
+### `mindscout semantic-search <query>`
+Search for articles using natural language queries. Uses semantic similarity to find relevant papers even if they don't contain exact keywords.
+
+Options:
+- `-n, --limit`: Number of results to show (default: 10)
+
+Examples:
+```bash
+# Search for papers about attention mechanisms
+mindscout semantic-search "attention mechanisms in transformers"
+
+# Find papers about a specific topic
+mindscout semantic-search "diffusion models for image generation" -n 20
+
+# Use natural language descriptions
+mindscout semantic-search "how to train large language models efficiently"
+```
+
+**Note:** Semantic search finds papers based on meaning, not just keywords. This is more powerful than traditional keyword search.
+
 ### `mindscout clear`
 Clear all articles from the database.
 
@@ -405,12 +484,15 @@ Currently supported categories:
 - ✅ Reading insights and analytics
 - ✅ Explainable recommendations
 
-### Phase 5: Smart Recommendations (Next)
-- Vector database integration (ChromaDB/Qdrant)
-- Semantic similarity search
-- LLM-powered relevance scoring
-- Adaptive learning from feedback
-- Weekly digest generation
+### Phase 5: Smart Recommendations ✅ COMPLETE
+- ✅ Vector database integration (ChromaDB)
+- ✅ Semantic similarity search
+- ✅ Natural language article search
+- ✅ Find similar papers by ID
+- ✅ Semantic recommendations based on interests and reading history
+- ⏳ LLM-powered relevance scoring - deferred
+- ⏳ Adaptive learning from feedback - deferred
+- ⏳ Weekly digest generation - deferred
 
 ### Phase 6: Web UI & Polish
 - FastAPI backend
@@ -427,6 +509,7 @@ mind-scout/
 │   ├── database.py        # SQLAlchemy models
 │   ├── profile.py         # User profile management
 │   ├── recommender.py     # Recommendation engine
+│   ├── vectorstore.py     # Vector database for semantic search
 │   ├── fetchers/          # Content fetchers (arXiv, Semantic Scholar)
 │   └── processors/        # AI processors (LLM, embeddings)
 ├── migrations/            # Database migrations

@@ -738,6 +738,149 @@ def cmd_insights(args):
         manager.close()
 
 
+def cmd_index(args):
+    """Index articles in vector database for semantic search."""
+    from mindscout.vectorstore import VectorStore
+
+    vector_store = VectorStore()
+
+    try:
+        console.print("[bold blue]Indexing articles in vector database...[/bold blue]")
+
+        if args.force:
+            console.print("[yellow]Force mode: Re-indexing all articles[/yellow]")
+
+        indexed = vector_store.index_articles(limit=args.limit, force=args.force)
+
+        console.print(f"[bold green]✓[/bold green] Indexed {indexed} articles")
+
+        # Show stats
+        stats = vector_store.get_collection_stats()
+        console.print(f"\n[dim]Total indexed: {stats['total_indexed']} articles[/dim]")
+        console.print(f"[dim]Embedding dimension: {stats['model']}[/dim]")
+
+    finally:
+        vector_store.close()
+
+
+def cmd_similar(args):
+    """Find articles similar to a given article."""
+    from mindscout.vectorstore import VectorStore
+
+    vector_store = VectorStore()
+    session = get_session()
+
+    try:
+        # Get the reference article
+        article = session.query(Article).filter_by(id=args.article_id).first()
+
+        if not article:
+            console.print(f"[bold red]Article {args.article_id} not found[/bold red]")
+            return
+
+        console.print(f"[bold cyan]Finding articles similar to:[/bold cyan]")
+        console.print(f"[dim]{article.title}[/dim]\n")
+
+        # Find similar articles
+        similar = vector_store.find_similar(
+            args.article_id,
+            n_results=args.limit,
+            min_similarity=args.min_similarity
+        )
+
+        if not similar:
+            console.print("[yellow]No similar articles found. Try:[/yellow]")
+            console.print("  1. Lowering --min-similarity threshold")
+            console.print("  2. Indexing more articles: mindscout index")
+            return
+
+        table = Table(
+            title=f"Similar Articles ({len(similar)} found)",
+            show_header=True,
+            header_style="bold cyan",
+        )
+        table.add_column("ID", style="dim", width=6)
+        table.add_column("Similarity", width=10, justify="right")
+        table.add_column("Title", style="bold", min_width=40)
+        table.add_column("Source", width=12)
+
+        for sim in similar:
+            sim_article = sim["article"]
+            similarity_str = f"{sim['similarity']:.0%}"
+
+            # Color code similarity
+            if sim["similarity"] >= 0.7:
+                similarity_str = f"[bold green]{similarity_str}[/bold green]"
+            elif sim["similarity"] >= 0.5:
+                similarity_str = f"[yellow]{similarity_str}[/yellow]"
+            else:
+                similarity_str = f"[dim]{similarity_str}[/dim]"
+
+            table.add_row(
+                str(sim_article.id),
+                similarity_str,
+                sim_article.title[:60],
+                sim_article.source
+            )
+
+        console.print(table)
+
+    finally:
+        vector_store.close()
+        session.close()
+
+
+def cmd_semantic_search(args):
+    """Perform semantic search for articles."""
+    from mindscout.vectorstore import VectorStore
+
+    vector_store = VectorStore()
+
+    try:
+        console.print(f"[bold blue]Semantic search:[/bold blue] \"{args.query}\"\n")
+
+        results = vector_store.semantic_search(args.query, n_results=args.limit)
+
+        if not results:
+            console.print("[yellow]No results found. Make sure articles are indexed:[/yellow]")
+            console.print("  mindscout index")
+            return
+
+        table = Table(
+            title=f"Search Results ({len(results)} found)",
+            show_header=True,
+            header_style="bold cyan",
+        )
+        table.add_column("ID", style="dim", width=6)
+        table.add_column("Relevance", width=10, justify="right")
+        table.add_column("Title", style="bold", min_width=40)
+        table.add_column("Source", width=12)
+
+        for result in results:
+            article = result["article"]
+            relevance_str = f"{result['relevance']:.0%}"
+
+            # Color code relevance
+            if result["relevance"] >= 0.7:
+                relevance_str = f"[bold green]{relevance_str}[/bold green]"
+            elif result["relevance"] >= 0.5:
+                relevance_str = f"[yellow]{relevance_str}[/yellow]"
+            else:
+                relevance_str = f"[dim]{relevance_str}[/dim]"
+
+            table.add_row(
+                str(article.id),
+                relevance_str,
+                article.title[:60],
+                article.source
+            )
+
+        console.print(table)
+
+    finally:
+        vector_store.close()
+
+
 def main():
     """Main entry point for Mind Scout CLI."""
     # Initialize database
@@ -898,6 +1041,25 @@ def main():
     # insights command (Phase 4)
     parser_insights = subparsers.add_parser('insights', help='Show reading insights and analytics')
     parser_insights.set_defaults(func=cmd_insights)
+
+    # index command (Phase 5)
+    parser_index = subparsers.add_parser('index', help='Index articles for semantic search')
+    parser_index.add_argument('-n', '--limit', type=int, help='Maximum number of articles to index')
+    parser_index.add_argument('-f', '--force', action='store_true', help='Re-index all articles')
+    parser_index.set_defaults(func=cmd_index)
+
+    # similar command (Phase 5)
+    parser_similar = subparsers.add_parser('similar', help='Find similar articles')
+    parser_similar.add_argument('article_id', type=int, help='Article ID to find similar papers for')
+    parser_similar.add_argument('-n', '--limit', type=int, default=10, help='Number of results (default: 10)')
+    parser_similar.add_argument('--min-similarity', type=float, default=0.3, help='Minimum similarity score (0-1)')
+    parser_similar.set_defaults(func=cmd_similar)
+
+    # semantic-search command (Phase 5)
+    parser_semantic = subparsers.add_parser('semantic-search', help='Semantic search for articles')
+    parser_semantic.add_argument('query', help='Natural language search query')
+    parser_semantic.add_argument('-n', '--limit', type=int, default=10, help='Number of results (default: 10)')
+    parser_semantic.set_defaults(func=cmd_semantic_search)
 
     # Parse arguments
     args = parser.parse_args()

@@ -1,8 +1,8 @@
 # Mind Scout - Current Status
 
-**Last Updated**: October 30, 2025
-**Current Phase**: Phase 4 Complete ✅
-**Next Phase**: Phase 5 - Smart Recommendations (Vector DB & Semantic Search)
+**Last Updated**: October 31, 2025
+**Current Phase**: Phase 5 Complete ✅
+**Next Phase**: Phase 6 - Web UI & Polish
 
 ---
 
@@ -12,12 +12,13 @@
 - **Sources**: arXiv, Semantic Scholar (with citation data!)
 - **User Profiles**: Active profile system with interests and preferences
 - **Lines of Code**: ~2,500+ (across all modules)
-- **Dependencies**: 7 core packages
-- **Time Invested**: ~35-40 hours
+- **Dependencies**: 9 core packages
+- **Time Invested**: ~45-48 hours
   - Phase 1: 5h
   - Phase 2: 8h
   - Phase 3: 10h
   - Phase 4: 12h
+  - Phase 5: 10h
 
 ---
 
@@ -41,12 +42,19 @@
 - Unified search command
 - Advanced filtering by year, citations
 
-### Phase 4: User Profile & Recommendations ✅ NEW!
+### Phase 4: User Profile & Recommendations ✅
 - User profile management (interests, skill level, preferences)
 - Multi-factor recommendation engine
 - Article rating system (1-5 stars)
 - Reading insights and analytics
 - Explainable AI recommendations
+
+### Phase 5: Smart Recommendations ✅ NEW!
+- Vector database integration (ChromaDB)
+- Semantic similarity search
+- Natural language article search
+- Find similar papers by ID
+- Semantic recommendations based on interests and reading history
 
 ---
 
@@ -95,6 +103,21 @@ mindscout recommend                         # Get personalized recommendations
 mindscout recommend --explain               # With detailed explanations
 mindscout rate <id> <1-5>                  # Rate an article
 mindscout insights                          # Reading analytics
+```
+
+### Semantic Search (Phase 5)
+```bash
+# Index articles for semantic search
+mindscout index                             # Index all articles
+mindscout index -n 50                       # Index 50 articles
+
+# Semantic search
+mindscout semantic-search "attention mechanisms in transformers"
+mindscout semantic-search "diffusion models" -n 20
+
+# Find similar papers
+mindscout similar 42 -n 5                   # Find 5 similar papers
+mindscout similar 42 --min-similarity 0.5   # With min similarity threshold
 ```
 
 ### Utility
@@ -169,6 +192,7 @@ mind-scout/
 │   ├── config.py          # Configuration
 │   ├── profile.py         # User profile management
 │   ├── recommender.py     # Recommendation engine
+│   ├── vectorstore.py     # Vector database (ChromaDB)
 │   ├── fetchers/
 │   │   ├── base.py        # BaseFetcher abstract class
 │   │   ├── arxiv.py       # Simple arXiv RSS
@@ -200,21 +224,23 @@ Core packages:
 - `rich` - Terminal formatting
 - `anthropic` - Claude API client
 - `numpy` - Vector operations
+- `chromadb` - Vector database for semantic search
+- `sentence-transformers` - Embedding model
 
 ---
 
-## 🚀 Next Phase: Smart Recommendations (Phase 5)
+## 🚀 Next Phase: Web UI & Polish (Phase 6)
 
 ### Planned Features
-- **Vector Database**: ChromaDB or Qdrant integration
-- **Semantic Search**: Find similar papers by content
-- **Enhanced Recommendations**: LLM-powered relevance scoring
-- **Feedback Learning**: Improve recommendations from ratings
-- **Weekly Digests**: Automated summaries
-- **Trending Topics**: Discover what's hot
+- **FastAPI Backend**: RESTful API for all features
+- **React Frontend**: Modern web interface
+- **Daily Digests**: Email summaries of new papers
+- **Export Functionality**: Export reading lists and notes
+- **Trending Topics**: Discover what's hot in your field
+- **Reading Lists**: Organize papers into collections
 
 ### Estimated Time
-8-12 hours
+15-20 hours
 
 ---
 
@@ -228,6 +254,8 @@ Mind Scout can now:
 5. ✅ Recommend personalized papers with explanations
 6. ✅ Track reading habits and analytics
 7. ✅ Rate papers to improve recommendations
+8. ✅ Perform semantic search using natural language
+9. ✅ Find similar papers using vector similarity
 
 ---
 
@@ -238,7 +266,8 @@ Mind Scout can now:
 - `MINDSCOUT_DATA_DIR` - Data directory (default: `~/.mindscout/`)
 
 **Database Location:**
-- `~/.mindscout/mindscout.db`
+- `~/.mindscout/mindscout.db` - SQLite database
+- `~/.mindscout/chroma/` - ChromaDB vector database
 
 ---
 
@@ -264,7 +293,7 @@ None! All major issues resolved:
 
 ## 🎓 Skills Demonstrated
 
-**Current (Phases 1-4):**
+**Current (Phases 1-5):**
 - API integration (arXiv, Semantic Scholar)
 - Database design and ORM (SQLAlchemy)
 - CLI development (argparse + Rich)
@@ -272,10 +301,11 @@ None! All major issues resolved:
 - Recommendation algorithms
 - User modeling and personalization
 - Data analysis and analytics
-
-**Upcoming (Phases 5-6):**
-- Vector databases (ChromaDB/Qdrant)
+- Vector databases (ChromaDB)
+- Semantic search with embeddings
 - RAG (Retrieval-Augmented Generation)
+
+**Upcoming (Phase 6):**
 - FastAPI backend
 - React frontend
 - Full-stack deployment
@@ -290,14 +320,14 @@ None! All major issues resolved:
 | 2: AI Processing | ✅ Complete | 8h | LLM, topics, embeddings (placeholder) |
 | 3: Multi-Source | ✅ Complete | 10h | Semantic Scholar, citations, unified search |
 | 4: Recommendations | ✅ Complete | 12h | Profile, recommendations, ratings, insights |
-| 5: Smart Recs | ⏳ Next | Est. 10h | Vector DB, semantic search |
-| 6: Web UI | ⏳ Planned | Est. 15h | FastAPI + React |
+| 5: Smart Recs | ✅ Complete | 10h | ChromaDB, semantic search, similarity matching |
+| 6: Web UI | ⏳ Next | Est. 15h | FastAPI + React |
 
-**Total**: ~35h invested, ~25h remaining
-**Completion**: 4 of 6 phases (67%)
+**Total**: ~45h invested, ~15h remaining
+**Completion**: 5 of 6 phases (83%)
 
 ---
 
-**Status**: Production-ready CLI application with AI-powered recommendations! 🚀
+**Status**: Production-ready CLI application with AI-powered semantic search and recommendations! 🚀
 
-The core value proposition is complete - Mind Scout now provides personalized research paper recommendations based on your interests and reading history.
+The core value proposition is complete - Mind Scout now provides personalized research paper recommendations using both traditional multi-factor scoring and advanced semantic similarity search. You can discover papers using natural language queries and find similar papers to ones you've enjoyed.

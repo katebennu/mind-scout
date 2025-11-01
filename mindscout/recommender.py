@@ -229,6 +229,84 @@ class RecommendationEngine:
             }
         }
 
+    def get_semantic_recommendations(
+        self,
+        limit: int = 10,
+        use_interests: bool = True,
+        use_reading_history: bool = True,
+    ) -> List[Dict]:
+        """Get recommendations using semantic similarity.
+
+        Args:
+            limit: Maximum number of recommendations
+            use_interests: Use user interests for semantic search
+            use_reading_history: Use highly-rated articles for similarity
+
+        Returns:
+            List of semantically similar articles
+        """
+        from mindscout.vectorstore import VectorStore
+
+        vector_store = VectorStore()
+        recommendations = []
+
+        try:
+            # Strategy 1: Search by user interests
+            if use_interests:
+                interests = self.profile_manager.get_interests()
+                if interests:
+                    # Create a query from interests
+                    query = " ".join(interests)
+                    results = vector_store.semantic_search(query, n_results=limit)
+
+                    for result in results:
+                        article = result["article"]
+                        # Skip read articles
+                        if not article.is_read:
+                            recommendations.append({
+                                "article": article,
+                                "score": result["relevance"],
+                                "reasons": [f"Semantically matches your interests ({result['relevance']:.0%})"],
+                                "method": "interest_search"
+                            })
+
+            # Strategy 2: Find papers similar to highly-rated ones
+            if use_reading_history:
+                # Get user's highly rated articles (4-5 stars)
+                high_rated = self.session.query(Article).filter(
+                    Article.rating >= 4
+                ).limit(3).all()
+
+                for rated_article in high_rated:
+                    similar = vector_store.find_similar(
+                        rated_article.id,
+                        n_results=5,
+                        min_similarity=0.5
+                    )
+
+                    for sim in similar:
+                        article = sim["article"]
+                        if not article.is_read:
+                            recommendations.append({
+                                "article": article,
+                                "score": sim["similarity"],
+                                "reasons": [f"Similar to '{rated_article.title[:50]}...' ({sim['similarity']:.0%})"],
+                                "method": "similar_to_liked"
+                            })
+
+            # Remove duplicates and sort by score
+            seen_ids = set()
+            unique_recs = []
+            for rec in sorted(recommendations, key=lambda x: x["score"], reverse=True):
+                if rec["article"].id not in seen_ids:
+                    seen_ids.add(rec["article"].id)
+                    unique_recs.append(rec)
+
+            return unique_recs[:limit]
+
+        finally:
+            vector_store.close()
+
     def close(self):
         """Close database sessions."""
         self.session.close()
