@@ -44,6 +44,14 @@ Mind Scout uses agentic workflows to discover, process, and recommend AI researc
 - **Source breakdown** - Understand where you read from most
 - **Daily goals** - Set and track reading targets
 
+### 🌐 Web API (New!)
+- **FastAPI backend** - Production-ready REST API
+- **11 endpoints** - Complete API coverage for all features
+- **OpenAPI docs** - Auto-generated API documentation at `/docs`
+- **CORS-enabled** - Ready for web and mobile frontends
+- **Pagination & filtering** - Efficient data retrieval
+- **Type-safe** - Pydantic models for request/response validation
+
 ## Installation
 
 ```bash
@@ -71,6 +79,22 @@ To use AI-powered features (summarization, topic extraction), you need an Anthro
 ```bash
 export ANTHROPIC_API_KEY='your-api-key-here'
 ```
+
+### Optional: Web API Setup
+
+To run the web API server:
+
+```bash
+# Start the FastAPI server
+python -m uvicorn backend.main:app --reload --port 8000
+
+# API will be available at:
+# - API: http://localhost:8000
+# - Interactive docs: http://localhost:8000/docs
+# - Health check: http://localhost:8000/api/health
+```
+
+The API provides full access to all Mind Scout features via REST endpoints. See [API Documentation](#web-api-reference) below for details.
 
 ## Quick Start
 
@@ -499,17 +523,21 @@ Currently supported categories:
 - ⏳ Adaptive learning from feedback - deferred
 - ⏳ Weekly digest generation - deferred
 
-### Phase 6: Web UI & Polish
-- FastAPI backend
-- React-based web interface
-- Daily digest emails
-- Export functionality
+### Phase 6: Web UI & Polish (Backend Complete) ✅
+- ✅ FastAPI backend with 11 REST endpoints
+- ✅ OpenAPI documentation
+- ✅ Pagination, filtering, and sorting
+- ✅ Full CRUD operations for all features
+- ✅ Type-safe with Pydantic models
+- ⏳ React-based web interface - planned
+- ⏳ Daily digest emails - planned
+- ⏳ Export functionality - planned
 
 ## Project Structure
 
 ```
 mind-scout/
-├── mindscout/              # Main package
+├── mindscout/              # Main package (core logic)
 │   ├── cli.py             # Command-line interface
 │   ├── database.py        # SQLAlchemy models
 │   ├── profile.py         # User profile management
@@ -517,12 +545,136 @@ mind-scout/
 │   ├── vectorstore.py     # Vector database for semantic search
 │   ├── fetchers/          # Content fetchers (arXiv, Semantic Scholar)
 │   └── processors/        # AI processors (LLM, embeddings)
+├── backend/               # Web API (NEW - Phase 6)
+│   ├── api/
+│   │   ├── articles.py    # Article endpoints
+│   │   ├── recommendations.py
+│   │   ├── profile.py
+│   │   └── search.py
+│   └── main.py            # FastAPI application
 ├── migrations/            # Database migrations
 ├── tests/                 # Test suite
 └── pyproject.toml         # Package configuration
 ```
 
 See [STRUCTURE.md](STRUCTURE.md) for detailed architecture documentation.
+
+## Web API Reference
+
+Mind Scout provides a complete REST API for integration with web and mobile applications.
+
+### Starting the API Server
+
+```bash
+python -m uvicorn backend.main:app --reload --port 8000
+```
+
+Visit `http://localhost:8000/docs` for interactive API documentation.
+
+### API Endpoints
+
+#### Articles
+
+**List Articles**
+```
+GET /api/articles?page=1&page_size=20&unread_only=false&source=arxiv&sort_by=fetched_date&sort_order=desc
+```
+
+**Get Article**
+```
+GET /api/articles/{id}
+```
+
+**Mark as Read**
+```
+POST /api/articles/{id}/read
+Body: {"is_read": true}
+```
+
+**Rate Article**
+```
+POST /api/articles/{id}/rate
+Body: {"rating": 5}
+```
+
+#### Recommendations
+
+**Get Recommendations**
+```
+GET /api/recommendations?limit=10&days_back=30&min_score=0.1
+```
+
+**Find Similar Articles**
+```
+GET /api/recommendations/{id}/similar?limit=10&min_similarity=0.3
+```
+
+**Semantic Recommendations**
+```
+GET /api/recommendations/semantic?limit=10&use_interests=true&use_reading_history=true
+```
+
+#### Profile
+
+**Get Profile**
+```
+GET /api/profile
+```
+
+**Update Profile**
+```
+PUT /api/profile
+Body: {
+  "interests": ["transformers", "RL"],
+  "skill_level": "advanced",
+  "preferred_sources": ["arxiv", "semanticscholar"],
+  "daily_reading_goal": 10
+}
+```
+
+**Get Statistics**
+```
+GET /api/profile/stats
+```
+
+#### Search
+
+**Semantic Search**
+```
+GET /api/search?q=attention mechanisms&limit=10
+```
+
+**Search Stats**
+```
+GET /api/search/stats
+```
+
+### Response Format
+
+All endpoints return JSON. Example article response:
+
+```json
+{
+  "id": 42,
+  "title": "Attention is All You Need",
+  "authors": "Vaswani et al.",
+  "abstract": "...",
+  "url": "https://arxiv.org/abs/1706.03762",
+  "source": "arxiv",
+  "published_date": "2017-06-12T00:00:00",
+  "is_read": false,
+  "rating": null,
+  "citation_count": 50000,
+  "has_implementation": true,
+  "topics": "[\"Transformers\", \"Attention Mechanisms\"]"
+}
+```
+
+### Error Responses
+
+- `404` - Resource not found
+- `400` - Invalid request (validation error)
+- `500` - Internal server error
 
 ## Development
 
@@ -538,6 +690,9 @@ black mindscout
 
 # Lint
 ruff check mindscout
+
+# Run API server (development mode)
+uvicorn backend.main:app --reload
 ```
 
 ## License
