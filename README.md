@@ -44,13 +44,20 @@ Mind Scout uses agentic workflows to discover, process, and recommend AI researc
 - **Source breakdown** - Understand where you read from most
 - **Daily goals** - Set and track reading targets
 
-### 🌐 Web API (New!)
-- **FastAPI backend** - Production-ready REST API
-- **11 endpoints** - Complete API coverage for all features
+### 🌐 Web API & Frontend
+- **FastAPI backend** - Production-ready REST API with 11 endpoints
+- **React web UI** - Modern, responsive interface with Tailwind CSS
 - **OpenAPI docs** - Auto-generated API documentation at `/docs`
 - **CORS-enabled** - Ready for web and mobile frontends
 - **Pagination & filtering** - Efficient data retrieval
 - **Type-safe** - Pydantic models for request/response validation
+
+### 🔌 MCP Server (New!)
+- **Claude Desktop integration** - Access Mind Scout directly from Claude
+- **8 AI tools** - Search, recommend, rate, and manage your library via AI
+- **Natural language** - "Search for papers about transformers" just works
+- **Secure & local** - Runs on your machine, no data sent externally
+- **Model Context Protocol** - Industry-standard AI integration (OpenAI, Google, Anthropic)
 
 ## Installation
 
@@ -95,6 +102,32 @@ python -m uvicorn backend.main:app --reload --port 8000
 ```
 
 The API provides full access to all Mind Scout features via REST endpoints. See [API Documentation](#web-api-reference) below for details.
+
+### Optional: MCP Server Setup (Claude Desktop)
+
+To use Mind Scout with Claude Desktop or other MCP-compatible AI assistants:
+
+```bash
+# Install MCP SDK
+pip install "mcp[cli]>=1.2.0"
+
+# Add to Claude Desktop config file:
+# macOS: ~/Library/Application Support/Claude/claude_desktop_config.json
+# Windows: %APPDATA%\Claude\claude_desktop_config.json
+
+{
+  "mcpServers": {
+    "mindscout": {
+      "command": "python",
+      "args": ["/path/to/agento/mcp-server/server.py"]
+    }
+  }
+}
+
+# Restart Claude Desktop
+```
+
+Once configured, you can ask Claude to search your library, get recommendations, rate papers, and more using natural language. See [mcp-server/README.md](mcp-server/README.md) for full documentation.
 
 ## Quick Start
 
