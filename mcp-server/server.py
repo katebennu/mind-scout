@@ -3,15 +3,38 @@
 
 Provides AI assistants with tools to interact with the Mind Scout research library.
 
-Tools:
-- search_papers: Semantic search through research papers
-- get_recommendations: Get personalized paper recommendations
-- get_article: Retrieve specific article details
-- list_articles: Browse articles with filters
-- rate_article: Rate a paper (1-5 stars)
-- mark_article_read: Mark paper as read/unread
-- get_profile: View user profile and reading statistics
-- update_interests: Update research interests
+This MCP server enables Claude Desktop (and other MCP-compatible AI assistants) to:
+- Search your research library with semantic search
+- Fetch new papers from arXiv and Semantic Scholar
+- Get personalized recommendations
+- Rate and track reading progress
+- Manage your profile and interests
+
+Tools (9 total):
+
+Search & Discovery:
+- search_papers: Semantic search through research papers using natural language
+- get_recommendations: Get personalized paper recommendations based on interests
+- fetch_articles: Fetch new papers from arXiv or Semantic Scholar and add to library
+
+Library Management:
+- list_articles: Browse articles with pagination and filters (unread, source, sort)
+- get_article: Retrieve detailed information about a specific article
+
+Reading & Rating:
+- rate_article: Rate a paper from 1-5 stars
+- mark_article_read: Mark paper as read or unread
+
+Profile & Settings:
+- get_profile: View user profile, interests, and comprehensive reading statistics
+- update_interests: Update research interests to improve recommendations
+
+Usage:
+    Once installed in Claude Desktop, simply ask questions like:
+    - "Fetch new transformer papers from arXiv"
+    - "Search my library for papers about diffusion models"
+    - "What are my top 5 recommendations?"
+    - "Show my reading statistics"
 """
 
 import sys
@@ -26,6 +49,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from mindscout.database import get_session, Article, UserProfile
 from mindscout.vectorstore import VectorStore
 from mindscout.recommender import RecommendationEngine
+from mindscout.fetchers.arxiv import fetch_arxiv
+from mindscout.fetchers.semanticscholar import SemanticScholarFetcher
 
 # Initialize MCP server
 mcp = FastMCP("Mind Scout")
@@ -381,6 +406,96 @@ def update_interests(interests: list[str]) -> dict:
 
     finally:
         session.close()
+
+
+@mcp.tool()
+def fetch_articles(
+    source: Literal["arxiv", "semanticscholar"],
+    query: Optional[str] = None,
+    categories: Optional[list[str]] = None,
+    limit: int = 20,
+    min_citations: Optional[int] = None,
+    year: Optional[str] = None
+) -> dict:
+    """Fetch new research papers from arXiv or Semantic Scholar and add them to your library.
+
+    Args:
+        source: Where to fetch from - "arxiv" or "semanticscholar"
+        query: Search query (for Semantic Scholar) or None for latest (arXiv)
+        categories: arXiv categories to fetch from (e.g., ["cs.AI", "cs.LG"]). Default: ["cs.AI", "cs.LG", "cs.CV", "cs.CL"]
+        limit: Maximum number of papers to fetch (default: 20, max for Semantic Scholar: 100)
+        min_citations: Minimum citation count (Semantic Scholar only)
+        year: Year filter (e.g., "2024" or "2023-2024") (Semantic Scholar only)
+
+    Returns:
+        Summary of fetched articles including count of new articles added
+
+    Examples:
+        - Fetch latest AI papers from arXiv: fetch_articles(source="arxiv")
+        - Search for transformer papers: fetch_articles(source="semanticscholar", query="transformers")
+        - Get highly cited recent papers: fetch_articles(source="semanticscholar", query="diffusion models", min_citations=50, year="2024")
+    """
+    try:
+        if source == "arxiv":
+            # Fetch from arXiv RSS feeds
+            if categories is None:
+                categories = ["cs.AI", "cs.LG", "cs.CV", "cs.CL"]
+
+            new_count = fetch_arxiv(categories=categories)
+
+            return {
+                "success": True,
+                "source": "arxiv",
+                "categories": categories,
+                "new_articles": new_count,
+                "message": f"Fetched {new_count} new papers from arXiv categories: {', '.join(categories)}"
+            }
+
+        elif source == "semanticscholar":
+            # Fetch from Semantic Scholar
+            if not query:
+                return {"error": "query parameter is required for Semantic Scholar searches"}
+
+            fetcher = SemanticScholarFetcher()
+
+            try:
+                # Fetch papers
+                papers = fetcher.fetch(
+                    query=query,
+                    limit=min(limit, 100),  # S2 API has max 100 per request
+                    min_citations=min_citations,
+                    year=year
+                )
+
+                # Save to database
+                new_count = fetcher.save_to_db(papers)
+
+                return {
+                    "success": True,
+                    "source": "semanticscholar",
+                    "query": query,
+                    "fetched": len(papers),
+                    "new_articles": new_count,
+                    "duplicates": len(papers) - new_count,
+                    "message": f"Fetched {len(papers)} papers from Semantic Scholar, {new_count} were new",
+                    "filters": {
+                        "min_citations": min_citations,
+                        "year": year
+                    }
+                }
+
+            finally:
+                fetcher.close()
+
+        else:
+            return {"error": f"Unknown source: {source}. Must be 'arxiv' or 'semanticscholar'"}
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"Failed to fetch articles: {str(e)}"
+        }
 
 
 if __name__ == "__main__":

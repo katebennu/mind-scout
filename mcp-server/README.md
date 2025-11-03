@@ -13,7 +13,7 @@ The Model Context Protocol (MCP) is an open standard that allows AI assistants t
 
 ## Tools Available
 
-The Mind Scout MCP server exposes 8 tools:
+The Mind Scout MCP server exposes 9 tools:
 
 ### 1. `search_papers`
 Search research papers using semantic search with natural language queries.
@@ -85,6 +85,23 @@ Update your research interests to improve recommendations.
 
 **Example:** "Update my interests to transformers, computer vision, and RL"
 
+### 9. `fetch_articles` (New!)
+Fetch new research papers from arXiv or Semantic Scholar and add them to your library.
+
+**Parameters:**
+- `source` (string): Where to fetch from - "arxiv" or "semanticscholar"
+- `query` (string, optional): Search query (required for Semantic Scholar)
+- `categories` (list of strings, optional): arXiv categories (default: ["cs.AI", "cs.LG", "cs.CV", "cs.CL"])
+- `limit` (int, optional): Maximum papers to fetch (default: 20)
+- `min_citations` (int, optional): Minimum citation count filter (Semantic Scholar only)
+- `year` (string, optional): Year filter like "2024" or "2023-2024" (Semantic Scholar only)
+
+**Examples:**
+- "Fetch the latest AI papers from arXiv"
+- "Fetch papers about diffusion models from Semantic Scholar"
+- "Get highly cited papers about transformers from 2024"
+- "Fetch computer vision papers with at least 100 citations"
+
 ## Installation
 
 ### Prerequisites
@@ -128,16 +145,38 @@ Update your research interests to improve recommendations.
 
 Once installed, you can use natural language commands in Claude Desktop:
 
+### Search & Browse
 ```
 User: "Search my Mind Scout library for papers about transformers"
 Claude: [Uses search_papers tool to search the library]
 
+User: "Show me unread papers from arxiv"
+Claude: [Uses list_articles tool with filters]
+```
+
+### Fetch New Papers
+```
+User: "Fetch the latest AI papers from arXiv"
+Claude: [Uses fetch_articles tool with source="arxiv"]
+
+User: "Find highly cited papers about diffusion models from 2024"
+Claude: [Uses fetch_articles with source="semanticscholar", query, year, min_citations]
+
+User: "Get new transformer papers from Semantic Scholar"
+Claude: [Uses fetch_articles to search and add to library]
+```
+
+### Recommendations & Ratings
+```
 User: "What are my top 3 unread recommendations?"
 Claude: [Uses get_recommendations tool with limit=3]
 
 User: "Rate that first paper 5 stars"
 Claude: [Uses rate_article tool]
+```
 
+### Profile & Stats
+```
 User: "Show my reading statistics"
 Claude: [Uses get_profile tool]
 

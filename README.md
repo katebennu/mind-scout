@@ -54,8 +54,9 @@ Mind Scout uses agentic workflows to discover, process, and recommend AI researc
 
 ### 🔌 MCP Server (New!)
 - **Claude Desktop integration** - Access Mind Scout directly from Claude
-- **8 AI tools** - Search, recommend, rate, and manage your library via AI
-- **Natural language** - "Search for papers about transformers" just works
+- **9 AI tools** - Search, fetch, recommend, rate, and manage your library via AI
+- **Natural language** - "Fetch new transformer papers from arXiv" just works
+- **Fetch integration** - Ask Claude to fetch papers from arXiv or Semantic Scholar
 - **Secure & local** - Runs on your machine, no data sent externally
 - **Model Context Protocol** - Industry-standard AI integration (OpenAI, Google, Anthropic)
 
