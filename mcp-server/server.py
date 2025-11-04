@@ -46,6 +46,7 @@ from mcp.server.fastmcp import FastMCP
 # Add parent directory to path to import mindscout modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import time
 from mindscout.database import get_session, Article, UserProfile
 from mindscout.vectorstore import VectorStore
 from mindscout.recommender import RecommendationEngine
@@ -459,6 +460,9 @@ def fetch_articles(
             fetcher = SemanticScholarFetcher()
 
             try:
+                # Add a small delay to respect rate limits
+                time.sleep(1)
+
                 # Fetch papers
                 papers = fetcher.fetch(
                     query=query,
@@ -483,6 +487,20 @@ def fetch_articles(
                         "year": year
                     }
                 }
+
+            except Exception as e:
+                error_msg = str(e)
+
+                # Check for rate limit error
+                if "429" in error_msg or "Too Many Requests" in error_msg:
+                    return {
+                        "success": False,
+                        "error": "rate_limit_exceeded",
+                        "message": "Semantic Scholar rate limit exceeded. Please wait a few minutes before trying again. The API allows ~100 requests per 5 minutes.",
+                        "suggestion": "Try reducing the limit parameter or wait 5 minutes before retrying."
+                    }
+                else:
+                    raise  # Re-raise other exceptions
 
             finally:
                 fetcher.close()

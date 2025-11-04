@@ -228,6 +228,14 @@ def your_new_tool(param1: str, param2: int = 10) -> dict:
 
 ## Troubleshooting
 
+**Semantic Scholar rate limit (429 error):**
+- **Cause**: Semantic Scholar limits ~100 requests per 5 minutes (unauthenticated)
+- Wait 5 minutes before retrying
+- Use smaller batches (`limit=10-20` instead of 100)
+- Get a free API key from https://www.semanticscholar.org/product/api
+- Use arXiv instead (no rate limits)
+- **Note**: The tool includes automatic 1-second delays between requests
+
 **Server not showing in Claude Desktop:**
 - Check the configuration file path is correct
 - Ensure Python path is correct (`which python`)
@@ -241,6 +249,13 @@ def your_new_tool(param1: str, param2: int = 10) -> dict:
 **Database errors:**
 - Ensure Mind Scout database exists and is initialized
 - Run `mindscout profile list` to verify setup
+
+**Fetch returns 0 new articles:**
+- Articles may already exist (duplicates filtered automatically)
+- Try broader search queries
+- Check if filters are too restrictive (min_citations, year)
+
+For detailed troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
 ## Security
 

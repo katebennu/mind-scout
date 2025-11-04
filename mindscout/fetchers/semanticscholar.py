@@ -83,38 +83,60 @@ class SemanticScholarFetcher(BaseFetcher):
             if min_citations:
                 params["minCitationCount"] = min_citations
 
-            try:
-                response = self.session.get(
-                    f"{self.BASE_URL}/paper/search",
-                    params=params,
-                    timeout=30
-                )
-                response.raise_for_status()
-                data = response.json()
+            # Retry logic for rate limiting
+            max_retries = 3
+            retry_delay = 2  # Start with 2 seconds
 
-                # Check if we got results
-                if "data" not in data or not data["data"]:
+            for retry in range(max_retries):
+                try:
+                    response = self.session.get(
+                        f"{self.BASE_URL}/paper/search",
+                        params=params,
+                        timeout=30
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+
+                    # Check if we got results
+                    if "data" not in data or not data["data"]:
+                        break
+
+                    # Parse results
+                    for paper in data["data"]:
+                        article = self._parse_paper(paper)
+                        if article:
+                            articles.append(article)
+
+                    # Check if there are more results
+                    total = data.get("total", 0)
+                    if offset + batch_size >= total or len(data["data"]) < batch_size:
+                        break
+
+                    offset += batch_size
+
+                    # Rate limiting - be nice to the API
+                    time.sleep(1)
+                    break  # Success, exit retry loop
+
+                except requests.exceptions.HTTPError as e:
+                    if e.response.status_code == 429:
+                        # Rate limit hit
+                        if retry < max_retries - 1:
+                            wait_time = retry_delay * (2 ** retry)  # Exponential backoff
+                            print(f"⚠️  Rate limit hit. Waiting {wait_time} seconds before retry {retry + 1}/{max_retries}...")
+                            time.sleep(wait_time)
+                        else:
+                            print(f"❌ Rate limit exceeded after {max_retries} retries.")
+                            print(f"   Semantic Scholar allows ~100 requests per 5 minutes.")
+                            print(f"   Please wait a few minutes and try again, or get an API key at:")
+                            print(f"   https://www.semanticscholar.org/product/api")
+                            return articles  # Return what we have so far
+                    else:
+                        print(f"Error fetching from Semantic Scholar: {e}")
+                        break
+                except requests.exceptions.RequestException as e:
+                    print(f"Error fetching from Semantic Scholar: {e}")
                     break
-
-                # Parse results
-                for paper in data["data"]:
-                    article = self._parse_paper(paper)
-                    if article:
-                        articles.append(article)
-
-                # Check if there are more results
-                total = data.get("total", 0)
-                if offset + batch_size >= total or len(data["data"]) < batch_size:
-                    break
-
-                offset += batch_size
-
-                # Rate limiting - be nice to the API
-                time.sleep(1)
-
-            except requests.exceptions.RequestException as e:
-                print(f"Error fetching from Semantic Scholar: {e}")
-                break
 
             if len(articles) >= limit:
                 break
@@ -229,6 +251,22 @@ class SemanticScholarFetcher(BaseFetcher):
             pass
 
         return None
+
+    def save_to_db(self, articles: List[Dict]) -> int:
+        """Save articles to database (alias for store_articles).
+
+        Args:
+            articles: List of article dictionaries
+
+        Returns:
+            Number of new articles added
+        """
+        return self.store_articles(articles)
+
+    def close(self):
+        """Close the requests session."""
+        if hasattr(self, 'session'):
+            self.session.close()
 
 
 def enrich_arxiv_papers_with_citations(limit: int = 100) -> int:
