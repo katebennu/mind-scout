@@ -332,9 +332,9 @@ def get_profile() -> dict:
         profile = session.query(UserProfile).first()
         if not profile:
             profile = UserProfile(
-                interests=[],
+                interests="",  # Stored as comma-separated string
                 skill_level="intermediate",
-                preferred_sources=[],
+                preferred_sources="",  # Stored as comma-separated string
                 daily_reading_goal=5
             )
 
@@ -352,10 +352,14 @@ def get_profile() -> dict:
         for article in all_articles:
             sources[article.source] = sources.get(article.source, 0) + 1
 
+        # Parse comma-separated strings to lists
+        interests = [i.strip() for i in profile.interests.split(",")] if profile.interests else []
+        preferred_sources = [s.strip() for s in profile.preferred_sources.split(",")] if profile.preferred_sources else []
+
         return {
-            "interests": profile.interests or [],
+            "interests": interests,
             "skill_level": profile.skill_level,
-            "preferred_sources": profile.preferred_sources or [],
+            "preferred_sources": preferred_sources,
             "daily_reading_goal": profile.daily_reading_goal,
             "statistics": {
                 "total_articles": total_articles,
@@ -384,18 +388,21 @@ def update_interests(interests: list[str]) -> dict:
     session = get_session()
 
     try:
+        # Convert list to comma-separated string for storage
+        interests_str = ",".join(interests)
+
         # Get or create profile
         profile = session.query(UserProfile).first()
         if not profile:
             profile = UserProfile(
-                interests=interests,
+                interests=interests_str,
                 skill_level="intermediate",
-                preferred_sources=[],
+                preferred_sources="",
                 daily_reading_goal=5
             )
             session.add(profile)
         else:
-            profile.interests = interests
+            profile.interests = interests_str
 
         session.commit()
 

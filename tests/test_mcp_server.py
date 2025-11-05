@@ -91,11 +91,11 @@ def sample_profile():
     """Create sample user profile for testing."""
     session = get_session()
 
-    import json
+    # Interests and sources are stored as comma-separated strings
     profile = UserProfile(
-        interests=json.dumps(["transformers", "natural language processing"]),
+        interests="transformers,natural language processing",
         skill_level="intermediate",
-        preferred_sources=json.dumps(["arxiv"]),
+        preferred_sources="arxiv",
         daily_reading_goal=5
     )
 
@@ -114,14 +114,15 @@ class TestSearchPapers:
 
     def test_search_papers_basic(self, sample_articles):
         """Test basic semantic search functionality."""
-        with patch('mindscout.vectorstore.VectorStore') as mock_vs:
+        # Get sample article
+        session = get_session()
+        article = session.query(Article).first()
+        session.close()
+
+        # Mock VectorStore at the location where it's used in the MCP server
+        with patch.object(mcp_server, 'VectorStore') as mock_vs:
             mock_instance = MagicMock()
             mock_vs.return_value = mock_instance
-
-            # Mock search results
-            session = get_session()
-            article = session.query(Article).first()
-            session.close()
 
             mock_instance.semantic_search.return_value = [
                 {
@@ -139,7 +140,7 @@ class TestSearchPapers:
 
     def test_search_papers_empty_results(self):
         """Test search with no results."""
-        with patch('mindscout.vectorstore.VectorStore') as mock_vs:
+        with patch.object(mcp_server, 'VectorStore') as mock_vs:
             mock_instance = MagicMock()
             mock_vs.return_value = mock_instance
             mock_instance.semantic_search.return_value = []
@@ -303,10 +304,10 @@ class TestUpdateInterests:
         assert result["success"] == True
         assert result["interests"] == interests
 
-        # Verify in database
+        # Verify in database (stored as comma-separated string)
         session = get_session()
         profile = session.query(UserProfile).first()
-        assert profile.interests == interests
+        assert profile.interests == "machine learning,computer vision"
         session.close()
 
     def test_update_interests_existing_profile(self, sample_profile):
@@ -323,7 +324,7 @@ class TestFetchArticles:
 
     def test_fetch_articles_arxiv(self):
         """Test fetching from arXiv."""
-        with patch('mindscout.fetchers.arxiv.fetch_arxiv') as mock_fetch:
+        with patch.object(mcp_server, 'fetch_arxiv') as mock_fetch:
             mock_fetch.return_value = 5
 
             result = mcp_server.fetch_articles(source="arxiv", categories=["cs.AI"], limit=20)
@@ -336,7 +337,7 @@ class TestFetchArticles:
 
     def test_fetch_articles_semanticscholar_success(self):
         """Test fetching from Semantic Scholar."""
-        with patch('mindscout.fetchers.semanticscholar.SemanticScholarFetcher') as mock_fetcher_class:
+        with patch.object(mcp_server, 'SemanticScholarFetcher') as mock_fetcher_class:
             mock_fetcher = MagicMock()
             mock_fetcher_class.return_value = mock_fetcher
 
