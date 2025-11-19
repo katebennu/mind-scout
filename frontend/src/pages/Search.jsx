@@ -1,4 +1,24 @@
 import { useState } from 'react'
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Stack,
+  Link,
+  Paper,
+  Alert,
+} from '@mui/material'
+import {
+  Search as SearchIcon,
+  Launch,
+  BarChart,
+  CheckCircle,
+} from '@mui/icons-material'
 
 const API_BASE = 'http://localhost:8000/api'
 
@@ -26,136 +46,176 @@ export default function Search() {
     setLoading(false)
   }
 
+  const exampleQueries = [
+    'attention mechanisms in deep learning',
+    'computer vision transformers',
+    'reinforcement learning for robotics',
+    'diffusion models for image generation',
+  ]
+
   return (
-    <div>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+    <Box>
+      <Box mb={4}>
+        <Typography variant="h4" fontWeight="bold" gutterBottom>
           Semantic Search
-        </h2>
-        <p className="text-gray-600">
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
           Search for papers using natural language - find papers by meaning, not just keywords
-        </p>
-      </div>
+        </Typography>
+      </Box>
 
       {/* Search Form */}
-      <form onSubmit={handleSearch} className="mb-8">
-        <div className="flex gap-2">
-          <input
-            type="text"
+      <Box component="form" onSubmit={handleSearch} mb={4}>
+        <Stack direction="row" spacing={2}>
+          <TextField
+            fullWidth
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="e.g., 'attention mechanisms in transformers' or 'how to train large language models'"
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            variant="outlined"
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+            }}
           />
-          <button
+          <Button
             type="submit"
+            variant="contained"
             disabled={loading || !query.trim()}
-            className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            sx={{ minWidth: 120 }}
           >
-            {loading ? 'Searching...' : 'Search'}
-          </button>
-        </div>
-      </form>
+            {loading ? <CircularProgress size={24} /> : 'Search'}
+          </Button>
+        </Stack>
+      </Box>
+
+      {/* Loading */}
+      {loading && (
+        <Box textAlign="center" py={12}>
+          <CircularProgress />
+          <Typography variant="body1" color="text.secondary" mt={2}>
+            Searching...
+          </Typography>
+        </Box>
+      )}
+
+      {/* No Results */}
+      {searched && !loading && results.length === 0 && (
+        <Box textAlign="center" py={12}>
+          <Alert severity="info">
+            <Typography variant="body1">No results found.</Typography>
+            <Typography variant="body2">Try a different search query</Typography>
+          </Alert>
+        </Box>
+      )}
 
       {/* Results */}
-      {loading && (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-          <p className="mt-2 text-gray-600">Searching...</p>
-        </div>
-      )}
-
-      {searched && !loading && results.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-600">No results found.</p>
-          <p className="text-sm text-gray-500 mt-2">
-            Try a different search query
-          </p>
-        </div>
-      )}
-
       {!loading && results.length > 0 && (
-        <div>
-          <p className="text-sm text-gray-600 mb-4">
+        <Box>
+          <Typography variant="body2" color="text.secondary" mb={2}>
             Found {results.length} results
-          </p>
-          <div className="space-y-4">
+          </Typography>
+          <Stack spacing={2}>
             {results.map((result) => {
               const article = result.article
               return (
-                <div
-                  key={article.id}
-                  className="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <span className="text-sm font-bold text-green-600">
-                          {Math.round(result.relevance * 100)}% relevant
-                        </span>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        {article.title}
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-2">{article.authors}</p>
-                      <p className="text-sm text-gray-500 line-clamp-3 mb-3">
-                        {article.abstract}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                            {article.source}
-                          </span>
-                          {article.published_date && (
-                            <span>
-                              {new Date(article.published_date).toLocaleDateString()}
-                            </span>
-                          )}
-                          {article.citation_count && (
-                            <span>📊 {article.citation_count} citations</span>
-                          )}
-                        </div>
+                <Card key={article.id} elevation={2}>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" gap={1} mb={2}>
+                      <CheckCircle color="success" fontSize="small" />
+                      <Typography variant="body2" color="success.main" fontWeight="bold">
+                        {Math.round(result.relevance * 100)}% relevant
+                      </Typography>
+                    </Box>
 
-                        <a
-                          href={article.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                    <Typography variant="h6" gutterBottom>
+                      {article.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {article.authors}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: 'vertical',
+                        mb: 2
+                      }}
+                    >
+                      {article.abstract}
+                    </Typography>
+
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                        <Chip
+                          label={article.source}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                        {article.published_date && (
+                          <Chip
+                            label={new Date(article.published_date).toLocaleDateString()}
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                        {article.citation_count && (
+                          <Chip
+                            icon={<BarChart />}
+                            label={`${article.citation_count} citations`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                      </Stack>
+
+                      <Link
+                        href={article.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        underline="none"
+                      >
+                        <Button
+                          endIcon={<Launch />}
+                          color="primary"
+                          size="small"
                         >
-                          View Paper →
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                          View Paper
+                        </Button>
+                      </Link>
+                    </Box>
+                  </CardContent>
+                </Card>
               )
             })}
-          </div>
-        </div>
+          </Stack>
+        </Box>
       )}
 
       {/* Example queries */}
       {!searched && (
-        <div className="mt-8 p-6 bg-gray-50 rounded-lg">
-          <h3 className="font-medium text-gray-900 mb-3">Example queries:</h3>
-          <div className="space-y-2">
-            {[
-              'attention mechanisms in deep learning',
-              'computer vision transformers',
-              'reinforcement learning for robotics',
-              'diffusion models for image generation',
-            ].map((example) => (
-              <button
+        <Paper elevation={0} sx={{ p: 3, bgcolor: 'grey.50', mt: 4 }}>
+          <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+            Example queries:
+          </Typography>
+          <Stack spacing={1}>
+            {exampleQueries.map((example) => (
+              <Button
                 key={example}
                 onClick={() => setQuery(example)}
-                className="block text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
+                sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
+                color="primary"
               >
                 {example}
-              </button>
+              </Button>
             ))}
-          </div>
-        </div>
+          </Stack>
+        </Paper>
       )}
-    </div>
+    </Box>
   )
 }

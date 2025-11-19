@@ -1,70 +1,98 @@
 import { useState } from 'react'
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Container,
+  Box,
+  Tabs,
+  Tab,
+  ThemeProvider,
+  createTheme,
+  CssBaseline
+} from '@mui/material'
+import {
+  LibraryBooks,
+  Recommend,
+  Search as SearchIcon,
+  Settings
+} from '@mui/icons-material'
 import Articles from './pages/Articles'
 import Recommendations from './pages/Recommendations'
 import Profile from './pages/Profile'
 import Search from './pages/Search'
 
-function App() {
-  const [currentPage, setCurrentPage] = useState('articles')
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#6366f1', // Indigo
+    },
+    secondary: {
+      main: '#8b5cf6', // Purple
+    },
+  },
+})
 
-  const navigation = [
-    { id: 'articles', name: 'Articles', icon: '📚' },
-    { id: 'recommendations', name: 'Recommendations', icon: '🎯' },
-    { id: 'search', name: 'Search', icon: '🔍' },
-    { id: 'profile', name: 'Profile', icon: '⚙️' },
+function App() {
+  const [currentTab, setCurrentTab] = useState(0)
+
+  const handleTabChange = (event, newValue) => {
+    setCurrentTab(newValue)
+  }
+
+  const tabs = [
+    { label: 'Articles', icon: <LibraryBooks />, component: <Articles /> },
+    { label: 'Recommendations', icon: <Recommend />, component: <Recommendations /> },
+    { label: 'Search', icon: <SearchIcon />, component: <Search /> },
+    { label: 'Profile', icon: <Settings />, component: <Profile /> },
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <h1 className="text-3xl font-bold text-gray-900">
-                🧠 Mind Scout
-              </h1>
-              <span className="ml-4 text-sm text-gray-500">
-                AI Research Assistant
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ flexGrow: 1, bgcolor: 'grey.50', minHeight: '100vh' }}>
+        {/* Header */}
+        <AppBar position="static" color="default" elevation={1}>
+          <Toolbar>
+            <Typography
+              variant="h5"
+              component="h1"
+              sx={{ flexGrow: 1, fontWeight: 'bold' }}
+            >
+              🧠 Mind Scout
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              AI Research Assistant
+            </Typography>
+          </Toolbar>
+        </AppBar>
 
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            {navigation.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setCurrentPage(item.id)}
-                className={`
-                  py-4 px-1 inline-flex items-center border-b-2 font-medium text-sm
-                  ${
-                    currentPage === item.id
-                      ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }
-                `}
-              >
-                <span className="mr-2">{item.icon}</span>
-                {item.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      </nav>
+        {/* Navigation Tabs */}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
+          <Container maxWidth="lg">
+            <Tabs
+              value={currentTab}
+              onChange={handleTabChange}
+              aria-label="navigation tabs"
+            >
+              {tabs.map((tab, index) => (
+                <Tab
+                  key={index}
+                  label={tab.label}
+                  icon={tab.icon}
+                  iconPosition="start"
+                />
+              ))}
+            </Tabs>
+          </Container>
+        </Box>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentPage === 'articles' && <Articles />}
-        {currentPage === 'recommendations' && <Recommendations />}
-        {currentPage === 'search' && <Search />}
-        {currentPage === 'profile' && <Profile />}
-      </main>
-    </div>
+        {/* Main Content */}
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+          {tabs[currentTab].component}
+        </Container>
+      </Box>
+    </ThemeProvider>
   )
 }
 

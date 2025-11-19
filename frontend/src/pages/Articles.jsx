@@ -1,4 +1,25 @@
 import { useState, useEffect } from 'react'
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  CardActions,
+  Button,
+  Chip,
+  IconButton,
+  CircularProgress,
+  Pagination,
+  Stack,
+  Rating,
+  Link,
+} from '@mui/material'
+import {
+  CheckCircle,
+  Circle,
+  Launch,
+  BarChart,
+} from '@mui/icons-material'
 
 const API_BASE = 'http://localhost:8000/api'
 
@@ -7,6 +28,7 @@ export default function Articles() {
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+  const pageSize = 10
 
   useEffect(() => {
     fetchArticles()
@@ -15,7 +37,7 @@ export default function Articles() {
   const fetchArticles = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/articles?page=${page}&page_size=10`)
+      const response = await fetch(`${API_BASE}/articles?page=${page}&page_size=${pageSize}`)
       const data = await response.json()
       setArticles(data.articles)
       setTotal(data.total)
@@ -32,7 +54,7 @@ export default function Articles() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rating })
       })
-      fetchArticles() // Refresh
+      fetchArticles()
     } catch (error) {
       console.error('Error rating article:', error)
     }
@@ -45,111 +67,136 @@ export default function Articles() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_read: isRead })
       })
-      fetchArticles() // Refresh
+      fetchArticles()
     } catch (error) {
       console.error('Error marking article:', error)
     }
   }
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return (
+      <Box display="flex" justifyContent="center" py={8}>
+        <CircularProgress />
+      </Box>
+    )
   }
 
+  const totalPages = Math.ceil(total / pageSize)
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Articles</h2>
-        <span className="text-sm text-gray-500">{total} total</span>
-      </div>
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4" fontWeight="bold">
+          Articles
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {total} total
+        </Typography>
+      </Box>
 
-      <div className="space-y-4">
+      <Stack spacing={2}>
         {articles.map((article) => (
-          <div
-            key={article.id}
-            className="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {article.title}
-                </h3>
-                <p className="text-sm text-gray-600 mb-2">{article.authors}</p>
-                <p className="text-sm text-gray-500 line-clamp-2 mb-3">
-                  {article.abstract}
-                </p>
-                <div className="flex items-center space-x-4 text-sm text-gray-500">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                    {article.source}
-                  </span>
-                  {article.published_date && (
-                    <span>{new Date(article.published_date).toLocaleDateString()}</span>
-                  )}
-                  {article.citation_count && (
-                    <span>📊 {article.citation_count} citations</span>
-                  )}
-                </div>
-              </div>
+          <Card key={article.id} elevation={2}>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" gap={2}>
+                <Box flex={1}>
+                  <Typography variant="h6" gutterBottom>
+                    {article.title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    {article.authors}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      mb: 2
+                    }}
+                  >
+                    {article.abstract}
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                    <Chip
+                      label={article.source}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
+                    {article.published_date && (
+                      <Chip
+                        label={new Date(article.published_date).toLocaleDateString()}
+                        size="small"
+                        variant="outlined"
+                      />
+                    )}
+                    {article.citation_count && (
+                      <Chip
+                        icon={<BarChart />}
+                        label={`${article.citation_count} citations`}
+                        size="small"
+                        variant="outlined"
+                      />
+                    )}
+                  </Stack>
+                </Box>
 
-              <div className="ml-4 flex flex-col space-y-2">
-                <button
-                  onClick={() => handleMarkRead(article.id, !article.is_read)}
-                  className={`px-3 py-1 text-sm rounded ${
-                    article.is_read
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                  }`}
-                >
-                  {article.is_read ? '✓ Read' : 'Mark Read'}
-                </button>
+                <Box display="flex" flexDirection="column" gap={1} alignItems="flex-end">
+                  <Button
+                    size="small"
+                    variant={article.is_read ? 'contained' : 'outlined'}
+                    color={article.is_read ? 'success' : 'inherit'}
+                    startIcon={article.is_read ? <CheckCircle /> : <Circle />}
+                    onClick={() => handleMarkRead(article.id, !article.is_read)}
+                  >
+                    {article.is_read ? 'Read' : 'Mark Read'}
+                  </Button>
 
-                {/* Rating buttons */}
-                <div className="flex space-x-1">
-                  {[1, 2, 3, 4, 5].map((rating) => (
-                    <button
-                      key={rating}
-                      onClick={() => handleRate(article.id, rating)}
-                      className={`text-lg ${
-                        article.rating >= rating ? 'text-yellow-500' : 'text-gray-300'
-                      } hover:text-yellow-400`}
-                      title={`Rate ${rating} stars`}
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <Rating
+                      value={article.rating || 0}
+                      onChange={(event, newValue) => {
+                        if (newValue) handleRate(article.id, newValue)
+                      }}
+                      size="small"
+                    />
+                  </Box>
+
+                  <Link
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    underline="hover"
+                  >
+                    <Button
+                      size="small"
+                      endIcon={<Launch />}
+                      color="primary"
                     >
-                      ★
-                    </button>
-                  ))}
-                </div>
-
-                <a
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-indigo-600 hover:text-indigo-800"
-                >
-                  View →
-                </a>
-              </div>
-            </div>
-          </div>
+                      View
+                    </Button>
+                  </Link>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
         ))}
-      </div>
+      </Stack>
 
-      {/* Pagination */}
-      <div className="mt-6 flex justify-center space-x-2">
-        <button
-          onClick={() => setPage(p => Math.max(1, p - 1))}
-          disabled={page === 1}
-          className="px-4 py-2 bg-white border rounded disabled:opacity-50 hover:bg-gray-50"
-        >
-          Previous
-        </button>
-        <span className="px-4 py-2">Page {page}</span>
-        <button
-          onClick={() => setPage(p => p + 1)}
-          disabled={page * 10 >= total}
-          className="px-4 py-2 bg-white border rounded disabled:opacity-50 hover:bg-gray-50"
-        >
-          Next
-        </button>
-      </div>
-    </div>
+      {totalPages > 1 && (
+        <Box display="flex" justifyContent="center" mt={4}>
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={(event, value) => setPage(value)}
+            color="primary"
+          />
+        </Box>
+      )}
+    </Box>
   )
 }

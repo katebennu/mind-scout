@@ -1,4 +1,4 @@
-.PHONY: test coverage coverage-html coverage-report install-dev clean lint format help
+.PHONY: test coverage coverage-html coverage-report install-dev clean lint format help api frontend db-init mcp-test mcp-install
 
 help:  ## Show this help message
 	@echo 'Usage: make [target]'

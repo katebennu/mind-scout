@@ -85,11 +85,11 @@ make api
 make frontend
 # Or: cd frontend && npm run dev
 
-# Open in browser
-open http://localhost:3000
+# Open in browser (Vite typically uses port 5173)
+open http://localhost:5173
 ```
 
-The web UI provides a beautiful interface for browsing papers, getting recommendations, and tracking your reading.
+The web UI provides a beautiful Material UI interface for browsing papers, getting recommendations, and tracking your reading.
 
 **API Documentation**: Visit `http://localhost:8000/docs` for interactive API docs.
 

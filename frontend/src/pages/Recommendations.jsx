@@ -1,4 +1,22 @@
 import { useState, useEffect } from 'react'
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Stack,
+  Link,
+  Button,
+  Alert,
+  AlertTitle,
+} from '@mui/material'
+import {
+  TrendingUp,
+  BarChart,
+  Launch,
+} from '@mui/icons-material'
 
 const API_BASE = 'http://localhost:8000/api'
 
@@ -23,99 +41,143 @@ export default function Recommendations() {
   }
 
   if (loading) {
-    return <div className="text-center py-8">Loading recommendations...</div>
+    return (
+      <Box display="flex" justifyContent="center" py={8}>
+        <CircularProgress />
+      </Box>
+    )
   }
 
   if (recommendations.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-600">No recommendations available.</p>
-        <p className="text-sm text-gray-500 mt-2">
-          Set your interests in the Profile page to get started!
-        </p>
-      </div>
+      <Box textAlign="center" py={12}>
+        <Alert severity="info">
+          <AlertTitle>No recommendations available</AlertTitle>
+          Set your interests in the Profile page to get personalized recommendations!
+        </Alert>
+      </Box>
     )
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">
+    <Box>
+      <Box mb={4}>
+        <Typography variant="h4" fontWeight="bold" gutterBottom>
           Personalized Recommendations
-        </h2>
-        <p className="text-gray-600 mt-1">
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
           Papers recommended based on your interests and reading history
-        </p>
-      </div>
+        </Typography>
+      </Box>
 
-      <div className="space-y-4">
+      <Stack spacing={2}>
         {recommendations.map((rec) => {
           const article = rec.article
           return (
-            <div
+            <Card
               key={article.id}
-              className="bg-white shadow rounded-lg p-6 border-l-4 border-indigo-500 hover:shadow-md transition-shadow"
+              elevation={2}
+              sx={{
+                borderLeft: 4,
+                borderColor: 'primary.main',
+              }}
             >
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <span className="text-lg font-bold text-indigo-600">
-                      {Math.round(rec.score * 100)}%
-                    </span>
-                    <span className="text-sm text-gray-500">match</span>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {article.title}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-2">{article.authors}</p>
-                </div>
-              </div>
+              <CardContent>
+                <Box display="flex" alignItems="center" gap={2} mb={2}>
+                  <TrendingUp color="primary" />
+                  <Typography variant="h6" color="primary.main" fontWeight="bold">
+                    {Math.round(rec.score * 100)}%
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    match
+                  </Typography>
+                </Box>
 
-              {/* Reasons */}
-              <div className="mb-3">
-                <p className="text-sm font-medium text-gray-700 mb-1">Why recommended:</p>
-                <div className="flex flex-wrap gap-2">
-                  {rec.reasons.map((reason, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-1 bg-indigo-50 text-indigo-700 text-sm rounded"
-                    >
-                      {reason}
-                    </span>
-                  ))}
-                </div>
-              </div>
+                <Typography variant="h6" gutterBottom>
+                  {article.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  {article.authors}
+                </Typography>
 
-              <p className="text-sm text-gray-500 line-clamp-2 mb-3">
-                {article.abstract}
-              </p>
+                {/* Reasons */}
+                <Box my={2}>
+                  <Typography variant="body2" fontWeight="medium" gutterBottom>
+                    Why recommended:
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                    {rec.reasons.map((reason, idx) => (
+                      <Chip
+                        key={idx}
+                        label={reason}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
+                    ))}
+                  </Stack>
+                </Box>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4 text-sm text-gray-500">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                    {article.source}
-                  </span>
-                  {article.published_date && (
-                    <span>{new Date(article.published_date).toLocaleDateString()}</span>
-                  )}
-                  {article.citation_count && (
-                    <span>📊 {article.citation_count} citations</span>
-                  )}
-                </div>
-
-                <a
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    mb: 2
+                  }}
                 >
-                  View Paper →
-                </a>
-              </div>
-            </div>
+                  {article.abstract}
+                </Typography>
+
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                  <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                    <Chip
+                      label={article.source}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
+                    {article.published_date && (
+                      <Chip
+                        label={new Date(article.published_date).toLocaleDateString()}
+                        size="small"
+                        variant="outlined"
+                      />
+                    )}
+                    {article.citation_count && (
+                      <Chip
+                        icon={<BarChart />}
+                        label={`${article.citation_count} citations`}
+                        size="small"
+                        variant="outlined"
+                      />
+                    )}
+                  </Stack>
+
+                  <Link
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    underline="none"
+                  >
+                    <Button
+                      endIcon={<Launch />}
+                      color="primary"
+                      size="small"
+                    >
+                      View Paper
+                    </Button>
+                  </Link>
+                </Box>
+              </CardContent>
+            </Card>
           )
         })}
-      </div>
-    </div>
+      </Stack>
+    </Box>
   )
 }
