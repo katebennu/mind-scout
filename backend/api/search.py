@@ -31,7 +31,7 @@ def semantic_search(
 
         return [
             SearchResult(
-                article=ArticleResponse.from_orm(result["article"]),
+                article=ArticleResponse.model_validate(result["article"]),
                 relevance=result["relevance"]
             )
             for result in results

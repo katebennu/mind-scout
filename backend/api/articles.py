@@ -86,7 +86,7 @@ def list_articles(
         articles = query.offset(offset).limit(page_size).all()
 
         return ArticleListResponse(
-            articles=[ArticleResponse.from_orm(a) for a in articles],
+            articles=[ArticleResponse.model_validate(a) for a in articles],
             total=total,
             page=page,
             page_size=page_size
@@ -107,7 +107,7 @@ def get_article(article_id: int):
         if not article:
             raise HTTPException(status_code=404, detail="Article not found")
 
-        return ArticleResponse.from_orm(article)
+        return ArticleResponse.model_validate(article)
 
     finally:
         session.close()

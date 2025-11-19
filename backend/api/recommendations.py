@@ -35,7 +35,7 @@ def get_recommendations(
 
         return [
             RecommendationResponse(
-                article=ArticleResponse.from_orm(rec["article"]),
+                article=ArticleResponse.model_validate(rec["article"]),
                 score=rec["score"],
                 reasons=rec["reasons"]
             )
@@ -66,7 +66,7 @@ def get_similar_articles(
 
         return [
             RecommendationResponse(
-                article=ArticleResponse.from_orm(sim["article"]),
+                article=ArticleResponse.model_validate(sim["article"]),
                 score=sim["similarity"],
                 reasons=[f"{sim['similarity']:.0%} similar"]
             )
@@ -95,7 +95,7 @@ def semantic_recommendations(
 
         return [
             RecommendationResponse(
-                article=ArticleResponse.from_orm(rec["article"]),
+                article=ArticleResponse.model_validate(rec["article"]),
                 score=rec["score"],
                 reasons=rec["reasons"]
             )
