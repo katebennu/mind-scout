@@ -1,0 +1,71 @@
+# This file specifies files that are *not* uploaded to Google Cloud
+# using gcloud. It follows the same syntax as .gitignore
+
+.gcloudignore
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+venv/
+env/
+.venv/
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+.tox/
+
+# Frontend (built separately)
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/src/
+frontend/public/
+frontend/package*.json
+frontend/vite.config.ts
+frontend/tsconfig.json
+
+# Development
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+README.md
+DEPLOYMENT.md
+DEPLOYMENT_GCP.md
+GCP_QUICKSTART.md
+TESTING.md
+docs/
+
+# Database (don't upload local DB)
+*.db
+*.sqlite
+*.sqlite3
+mindscout.db
+
+# Logs
+*.log
+logs/
+
+# Environment (secrets should be in Secret Manager)
+.env
+.env.*
+
+# Temporary
+tmp/
+temp/
+*.tmp
