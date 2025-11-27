@@ -1,13 +1,8 @@
 """Tests for articles API endpoints."""
 
-import sys
-from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from datetime import datetime
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.main import app
 from mindscout.database import get_session, Article
@@ -20,17 +15,9 @@ def client():
 
 
 @pytest.fixture
-def sample_articles(tmp_path, monkeypatch):
+def sample_articles(isolated_test_db):
     """Create sample articles in test database."""
-    # Use temporary database
-    db_path = tmp_path / "test.db"
-    monkeypatch.setenv("MINDSCOUT_DATA_DIR", str(tmp_path))
-
     session = get_session()
-
-    # Clear any existing articles
-    session.query(Article).delete()
-    session.commit()
 
     # Create sample articles
     articles = [

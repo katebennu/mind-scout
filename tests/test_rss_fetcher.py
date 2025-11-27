@@ -1,35 +1,11 @@
 """Tests for RSS fetcher."""
 
-import sys
-from pathlib import Path
 import pytest
 from datetime import datetime
 from unittest.mock import patch, MagicMock
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from mindscout.fetchers.rss import RSSFetcher
-from mindscout.database import get_session, Article, RSSFeed, Notification, init_db
-
-
-@pytest.fixture
-def test_db(tmp_path, monkeypatch):
-    """Set up test database."""
-    monkeypatch.setenv("MINDSCOUT_DATA_DIR", str(tmp_path))
-
-    # Re-initialize database with new path
-    from mindscout import config
-    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
-    monkeypatch.setattr(config, "DB_PATH", tmp_path / "mindscout.db")
-
-    # Reload database module to pick up new path
-    from mindscout import database
-    database.engine = database.create_engine(f"sqlite:///{tmp_path / 'mindscout.db'}")
-    database.Session = database.sessionmaker(bind=database.engine)
-
-    init_db()
-    yield tmp_path
+from mindscout.database import get_session, Article, RSSFeed, Notification
 
 
 @pytest.fixture
@@ -39,7 +15,7 @@ def fetcher():
 
 
 @pytest.fixture
-def sample_feed(test_db):
+def sample_feed(isolated_test_db):
     """Create a sample feed in the database."""
     session = get_session()
 
@@ -180,7 +156,7 @@ class TestRSSFetcherGenerateSourceId:
 class TestRSSFetcherFetchFeed:
     """Test fetching from a subscribed feed."""
 
-    def test_fetch_feed_creates_articles(self, fetcher, sample_feed, test_db):
+    def test_fetch_feed_creates_articles(self, fetcher, sample_feed, isolated_test_db):
         """Test that fetching creates new articles."""
         mock_parsed = MagicMock(spec=[])  # Empty spec prevents auto-creating attributes
         mock_parsed.feed = {"title": "Test Feed"}
@@ -210,7 +186,7 @@ class TestRSSFetcherFetchFeed:
         assert articles[0].source_name == "Test Feed"
         session.close()
 
-    def test_fetch_feed_creates_notifications(self, fetcher, sample_feed, test_db):
+    def test_fetch_feed_creates_notifications(self, fetcher, sample_feed, isolated_test_db):
         """Test that fetching creates notifications."""
         mock_parsed = MagicMock(spec=[])  # Empty spec prevents auto-creating attributes
         mock_parsed.feed = {"title": "Test Feed"}
@@ -233,7 +209,7 @@ class TestRSSFetcherFetchFeed:
         assert notifications[0].is_read is False
         session.close()
 
-    def test_fetch_feed_skips_duplicates(self, fetcher, sample_feed, test_db):
+    def test_fetch_feed_skips_duplicates(self, fetcher, sample_feed, isolated_test_db):
         """Test that duplicate articles are not created."""
         mock_parsed = MagicMock(spec=[])  # Empty spec prevents auto-creating attributes
         mock_parsed.feed = {"title": "Test Feed"}
@@ -260,7 +236,7 @@ class TestRSSFetcherFetchFeed:
         assert len(articles) == 1
         session.close()
 
-    def test_fetch_feed_updates_last_checked(self, fetcher, sample_feed, test_db):
+    def test_fetch_feed_updates_last_checked(self, fetcher, sample_feed, isolated_test_db):
         """Test that last_checked is updated."""
         mock_parsed = MagicMock(spec=[])  # Empty spec prevents auto-creating attributes
         mock_parsed.feed = {"title": "Test Feed"}
@@ -281,7 +257,7 @@ class TestRSSFetcherFetchFeed:
 class TestRSSFetcherRefreshAllFeeds:
     """Test refreshing all feeds."""
 
-    def test_refresh_all_feeds(self, fetcher, test_db):
+    def test_refresh_all_feeds(self, fetcher, isolated_test_db):
         """Test refreshing all active feeds."""
         session = get_session()
 

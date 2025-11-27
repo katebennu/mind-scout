@@ -1,17 +1,12 @@
 """Tests for subscriptions API endpoints."""
 
-import sys
-from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from datetime import datetime
 from unittest.mock import patch, MagicMock
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from backend.main import app
-from mindscout.database import get_session, RSSFeed, init_db
+from mindscout.database import get_session, RSSFeed
 
 
 @pytest.fixture
@@ -21,26 +16,7 @@ def client():
 
 
 @pytest.fixture
-def test_db(tmp_path, monkeypatch):
-    """Set up test database."""
-    monkeypatch.setenv("MINDSCOUT_DATA_DIR", str(tmp_path))
-
-    # Re-initialize database with new path
-    from mindscout import config
-    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
-    monkeypatch.setattr(config, "DB_PATH", tmp_path / "mindscout.db")
-
-    # Reload database module to pick up new path
-    from mindscout import database
-    database.engine = database.create_engine(f"sqlite:///{tmp_path / 'mindscout.db'}")
-    database.Session = database.sessionmaker(bind=database.engine)
-
-    init_db()
-    yield tmp_path
-
-
-@pytest.fixture
-def sample_feeds(test_db):
+def sample_feeds(isolated_test_db):
     """Create sample RSS feeds in test database."""
     session = get_session()
 
@@ -83,7 +59,7 @@ def sample_feeds(test_db):
 class TestListSubscriptions:
     """Test GET /api/subscriptions endpoint."""
 
-    def test_list_subscriptions_empty(self, client, test_db):
+    def test_list_subscriptions_empty(self, client, isolated_test_db):
         """Test listing subscriptions when none exist."""
         response = client.get("/api/subscriptions")
         assert response.status_code == 200
@@ -106,7 +82,7 @@ class TestListSubscriptions:
 class TestGetCuratedFeeds:
     """Test GET /api/subscriptions/curated endpoint."""
 
-    def test_get_curated_feeds(self, client, test_db):
+    def test_get_curated_feeds(self, client, isolated_test_db):
         """Test getting curated feed suggestions."""
         response = client.get("/api/subscriptions/curated")
         assert response.status_code == 200
@@ -125,7 +101,7 @@ class TestGetCuratedFeeds:
 class TestCreateSubscription:
     """Test POST /api/subscriptions endpoint."""
 
-    def test_create_subscription_success(self, client, test_db):
+    def test_create_subscription_success(self, client, isolated_test_db):
         """Test creating a new subscription with valid feed."""
         # Mock feedparser to return valid feed
         mock_feed = MagicMock()
@@ -151,7 +127,7 @@ class TestCreateSubscription:
         assert data["category"] == "tech_blog"
         assert data["is_active"] is True
 
-    def test_create_subscription_auto_title(self, client, test_db):
+    def test_create_subscription_auto_title(self, client, isolated_test_db):
         """Test that feed title is auto-detected if not provided."""
         mock_feed = MagicMock()
         mock_feed.bozo = False
@@ -169,7 +145,7 @@ class TestCreateSubscription:
         assert response.status_code == 200
         assert response.json()["title"] == "Auto Detected Title"
 
-    def test_create_subscription_invalid_feed(self, client, test_db):
+    def test_create_subscription_invalid_feed(self, client, isolated_test_db):
         """Test creating subscription with invalid feed URL."""
         mock_feed = MagicMock()
         mock_feed.bozo = True

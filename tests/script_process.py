@@ -1,8 +1,10 @@
 #!/usr/bin/env python
-"""Test script for processing articles."""
+"""Script for testing article processing (not a pytest test).
+
+Run manually with: python tests/script_process.py
+"""
 
 import os
-from mindscout.processors.content import ContentProcessor
 
 # Check for API key
 if not os.getenv("ANTHROPIC_API_KEY"):
@@ -11,6 +13,8 @@ if not os.getenv("ANTHROPIC_API_KEY"):
     print("  export ANTHROPIC_API_KEY='your-api-key-here'")
     print("\nOr get a key from: https://console.anthropic.com/")
     exit(1)
+
+from mindscout.processors.content import ContentProcessor
 
 print("Testing article processing with Anthropic Claude...\n")
 
