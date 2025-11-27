@@ -206,6 +206,7 @@ class SemanticScholarFetcher(BaseFetcher):
             article = {
                 "source_id": paper_id,
                 "source": "semanticscholar",
+                "source_name": "Semantic Scholar",
                 "title": title,
                 "authors": authors_str,
                 "abstract": abstract or "",

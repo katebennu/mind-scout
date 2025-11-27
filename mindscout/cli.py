@@ -882,6 +882,237 @@ def cmd_semantic_search(args):
         vector_store.close()
 
 
+def cmd_subscribe(args):
+    """Manage RSS feed subscriptions."""
+    from mindscout.database import RSSFeed, Notification
+    from mindscout.config import CURATED_FEEDS
+
+    session = get_session()
+
+    try:
+        if args.sub_command == 'list':
+            feeds = session.query(RSSFeed).order_by(RSSFeed.created_date.desc()).all()
+
+            if not feeds:
+                console.print("[yellow]No subscriptions yet.[/yellow]")
+                console.print("Add one with: mindscout subscribe add <url>")
+                console.print("Or browse suggestions: mindscout subscribe curated")
+                return
+
+            table = Table(
+                title=f"Your Subscriptions ({len(feeds)} feeds)",
+                show_header=True,
+                header_style="bold cyan",
+            )
+            table.add_column("ID", style="dim", width=4)
+            table.add_column("Title", style="bold", min_width=25)
+            table.add_column("Category", width=12)
+            table.add_column("Last Checked", width=18)
+            table.add_column("Active", width=6, justify="center")
+
+            for feed in feeds:
+                last_checked = feed.last_checked.strftime("%Y-%m-%d %H:%M") if feed.last_checked else "Never"
+                active = "[green]Yes[/green]" if feed.is_active else "[red]No[/red]"
+                table.add_row(
+                    str(feed.id),
+                    (feed.title or "Untitled")[:30],
+                    feed.category or "-",
+                    last_checked,
+                    active
+                )
+
+            console.print(table)
+
+        elif args.sub_command == 'add':
+            import feedparser
+
+            # Check if already subscribed
+            existing = session.query(RSSFeed).filter(RSSFeed.url == args.url).first()
+            if existing:
+                console.print(f"[yellow]Already subscribed to this feed:[/yellow] {existing.title or args.url}")
+                return
+
+            console.print(f"[bold blue]Validating feed...[/bold blue]")
+
+            # Validate feed
+            feed = feedparser.parse(args.url)
+            if feed.bozo and not feed.entries:
+                console.print(f"[bold red]Error:[/bold red] Invalid RSS feed or feed is empty")
+                return
+
+            # Get title from feed if not provided
+            title = args.title
+            if not title and feed.feed.get("title"):
+                title = feed.feed.title
+
+            # Create subscription
+            subscription = RSSFeed(
+                url=args.url,
+                title=title,
+                category=args.category,
+                is_active=True
+            )
+            session.add(subscription)
+            session.commit()
+
+            console.print(f"[bold green]✓[/bold green] Subscribed to: {title or args.url}")
+
+        elif args.sub_command == 'remove':
+            feed = session.query(RSSFeed).filter(RSSFeed.id == args.feed_id).first()
+            if not feed:
+                console.print(f"[bold red]Subscription {args.feed_id} not found[/bold red]")
+                return
+
+            title = feed.title or feed.url
+            session.delete(feed)
+            session.commit()
+
+            console.print(f"[bold green]✓[/bold green] Unsubscribed from: {title}")
+
+        elif args.sub_command == 'curated':
+            console.print("[bold cyan]Suggested RSS Feeds[/bold cyan]\n")
+
+            # Group by category
+            by_category = {}
+            for feed in CURATED_FEEDS:
+                cat = feed["category"]
+                if cat not in by_category:
+                    by_category[cat] = []
+                by_category[cat].append(feed)
+
+            # Show subscribed URLs for comparison
+            subscribed_urls = {f.url for f in session.query(RSSFeed).all()}
+
+            for category, feeds in sorted(by_category.items()):
+                console.print(f"\n[bold]{category.replace('_', ' ').title()}[/bold]")
+                for feed in feeds:
+                    subscribed = "[green]✓[/green]" if feed["url"] in subscribed_urls else " "
+                    console.print(f"  {subscribed} {feed['title']}")
+                    console.print(f"      [dim]{feed['description']}[/dim]")
+                    console.print(f"      [dim]{feed['url']}[/dim]")
+
+            console.print("\n[dim]Add a feed: mindscout subscribe add <url>[/dim]")
+
+        elif args.sub_command == 'refresh':
+            from mindscout.fetchers.rss import RSSFetcher
+
+            fetcher = RSSFetcher()
+
+            if args.feed_id:
+                # Refresh specific feed
+                feed = session.query(RSSFeed).filter(RSSFeed.id == args.feed_id).first()
+                if not feed:
+                    console.print(f"[bold red]Subscription {args.feed_id} not found[/bold red]")
+                    return
+
+                console.print(f"[bold blue]Refreshing:[/bold blue] {feed.title or feed.url}")
+                result = fetcher.fetch_feed(feed)
+                console.print(f"[bold green]✓[/bold green] Found {result['new_count']} new articles")
+
+            else:
+                # Refresh all feeds
+                feeds = session.query(RSSFeed).filter(RSSFeed.is_active == True).all()
+                if not feeds:
+                    console.print("[yellow]No active subscriptions to refresh[/yellow]")
+                    return
+
+                console.print(f"[bold blue]Refreshing {len(feeds)} subscriptions...[/bold blue]")
+
+                total_new = 0
+                for feed in feeds:
+                    try:
+                        result = fetcher.fetch_feed(feed)
+                        if result["new_count"] > 0:
+                            console.print(f"  [green]+{result['new_count']}[/green] {feed.title or feed.url}")
+                        total_new += result["new_count"]
+                    except Exception as e:
+                        console.print(f"  [red]Error[/red] {feed.title or feed.url}: {e}")
+
+                console.print(f"\n[bold green]✓[/bold green] Found {total_new} new articles total")
+
+    except Exception as e:
+        session.rollback()
+        console.print(f"[bold red]Error:[/bold red] {e}")
+    finally:
+        session.close()
+
+
+def cmd_notifications(args):
+    """Manage notifications."""
+    from mindscout.database import Notification, RSSFeed
+
+    session = get_session()
+
+    try:
+        if args.notif_command == 'list':
+            query = session.query(Notification).order_by(Notification.created_date.desc())
+
+            if args.unread:
+                query = query.filter(Notification.is_read == False)
+
+            notifications = query.limit(args.limit).all()
+
+            if not notifications:
+                if args.unread:
+                    console.print("[green]No unread notifications![/green]")
+                else:
+                    console.print("[yellow]No notifications yet.[/yellow]")
+                return
+
+            unread_count = session.query(Notification).filter(Notification.is_read == False).count()
+            console.print(f"[bold cyan]Notifications[/bold cyan] ({unread_count} unread)\n")
+
+            for notif in notifications:
+                article = session.query(Article).filter(Article.id == notif.article_id).first()
+                feed = session.query(RSSFeed).filter(RSSFeed.id == notif.feed_id).first() if notif.feed_id else None
+
+                status = "[dim]read[/dim]" if notif.is_read else "[bold yellow]NEW[/bold yellow]"
+                feed_name = feed.title if feed else "Unknown feed"
+                time_str = notif.created_date.strftime("%Y-%m-%d %H:%M")
+
+                console.print(f"{status} [{time_str}] from {feed_name}")
+                console.print(f"  [bold]{article.title[:70]}[/bold]" if article else "  [dim]Article not found[/dim]")
+                console.print(f"  [dim]ID: {notif.id} | Article: {notif.article_id}[/dim]\n")
+
+        elif args.notif_command == 'count':
+            unread = session.query(Notification).filter(Notification.is_read == False).count()
+            total = session.query(Notification).count()
+            console.print(f"Notifications: {unread} unread / {total} total")
+
+        elif args.notif_command == 'read':
+            if args.all:
+                count = session.query(Notification).filter(
+                    Notification.is_read == False
+                ).update({Notification.is_read: True, Notification.read_date: datetime.utcnow()})
+                session.commit()
+                console.print(f"[bold green]✓[/bold green] Marked {count} notifications as read")
+            else:
+                notif = session.query(Notification).filter(Notification.id == args.notification_id).first()
+                if not notif:
+                    console.print(f"[bold red]Notification {args.notification_id} not found[/bold red]")
+                    return
+
+                notif.is_read = True
+                notif.read_date = datetime.utcnow()
+                session.commit()
+                console.print(f"[bold green]✓[/bold green] Marked notification {args.notification_id} as read")
+
+        elif args.notif_command == 'clear':
+            if args.all:
+                count = session.query(Notification).delete()
+            else:
+                count = session.query(Notification).filter(Notification.is_read == True).delete()
+
+            session.commit()
+            console.print(f"[bold green]✓[/bold green] Cleared {count} notifications")
+
+    except Exception as e:
+        session.rollback()
+        console.print(f"[bold red]Error:[/bold red] {e}")
+    finally:
+        session.close()
+
+
 def main():
     """Main entry point for Mind Scout CLI."""
     # Initialize database
@@ -1061,6 +1292,55 @@ def main():
     parser_semantic.add_argument('query', help='Natural language search query')
     parser_semantic.add_argument('-n', '--limit', type=int, default=10, help='Number of results (default: 10)')
     parser_semantic.set_defaults(func=cmd_semantic_search)
+
+    # subscribe command (RSS subscriptions)
+    parser_sub = subparsers.add_parser('subscribe', help='Manage RSS feed subscriptions')
+    sub_subparsers = parser_sub.add_subparsers(dest='sub_command', required=True)
+
+    # subscribe list
+    sub_list = sub_subparsers.add_parser('list', help='List all subscriptions')
+
+    # subscribe add
+    sub_add = sub_subparsers.add_parser('add', help='Subscribe to an RSS feed')
+    sub_add.add_argument('url', help='RSS feed URL')
+    sub_add.add_argument('-t', '--title', help='Custom title for the feed')
+    sub_add.add_argument('-c', '--category', help='Category (tech_blog, news, podcast, newsletter, papers)')
+
+    # subscribe remove
+    sub_remove = sub_subparsers.add_parser('remove', help='Unsubscribe from a feed')
+    sub_remove.add_argument('feed_id', type=int, help='Subscription ID')
+
+    # subscribe curated
+    sub_curated = sub_subparsers.add_parser('curated', help='Browse suggested feeds')
+
+    # subscribe refresh
+    sub_refresh = sub_subparsers.add_parser('refresh', help='Check subscriptions for new articles')
+    sub_refresh.add_argument('feed_id', type=int, nargs='?', help='Specific subscription ID (optional)')
+
+    parser_sub.set_defaults(func=cmd_subscribe)
+
+    # notifications command
+    parser_notif = subparsers.add_parser('notifications', help='Manage notifications')
+    notif_subparsers = parser_notif.add_subparsers(dest='notif_command', required=True)
+
+    # notifications list
+    notif_list = notif_subparsers.add_parser('list', help='List notifications')
+    notif_list.add_argument('-u', '--unread', action='store_true', help='Show only unread')
+    notif_list.add_argument('-n', '--limit', type=int, default=20, help='Max notifications to show')
+
+    # notifications count
+    notif_count = notif_subparsers.add_parser('count', help='Show notification count')
+
+    # notifications read
+    notif_read = notif_subparsers.add_parser('read', help='Mark notification(s) as read')
+    notif_read.add_argument('notification_id', type=int, nargs='?', help='Notification ID')
+    notif_read.add_argument('-a', '--all', action='store_true', help='Mark all as read')
+
+    # notifications clear
+    notif_clear = notif_subparsers.add_parser('clear', help='Clear notifications')
+    notif_clear.add_argument('-a', '--all', action='store_true', help='Clear all (not just read)')
+
+    parser_notif.set_defaults(func=cmd_notifications)
 
     # Parse arguments
     args = parser.parse_args()
