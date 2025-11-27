@@ -147,24 +147,29 @@ class RSSFetcher(BaseFetcher):
         notifications_count = 0
 
         try:
+            # Get the feed object in this session
+            db_feed = session.query(RSSFeed).filter_by(id=feed.id).first()
+            if not db_feed:
+                raise ValueError(f"Feed with id {feed.id} not found")
+
             # Parse the feed
             parsed = feedparser.parse(feed.url)
 
             # Update feed metadata
-            feed.last_checked = datetime.utcnow()
+            db_feed.last_checked = datetime.utcnow()
             if hasattr(parsed, "etag"):
-                feed.last_etag = parsed.etag
+                db_feed.last_etag = parsed.etag
             if hasattr(parsed, "modified"):
-                feed.last_modified = parsed.modified
+                db_feed.last_modified = parsed.modified
 
             # Update feed title if we got one
-            if parsed.feed.get("title") and not feed.title:
-                feed.title = parsed.feed.title
+            if parsed.feed.get("title") and not db_feed.title:
+                db_feed.title = parsed.feed.title
 
             new_article_ids = []
 
             # Use feed title as source_name
-            source_name = feed.title or parsed.feed.get("title") or "RSS Feed"
+            source_name = db_feed.title or parsed.feed.get("title") or "RSS Feed"
 
             for entry in parsed.entries:
                 article_data = self._parse_entry(entry, feed.url)
