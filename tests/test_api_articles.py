@@ -28,6 +28,7 @@ def sample_articles(isolated_test_db):
             abstract="This is a test abstract about transformers.",
             url="https://example.com/1",
             source="arxiv",
+            source_name="arXiv cs.AI",
             published_date=datetime(2024, 1, 15),
             fetched_date=datetime(2024, 1, 20),
             categories="cs.AI",
@@ -43,6 +44,7 @@ def sample_articles(isolated_test_db):
             abstract="Another test abstract about reinforcement learning.",
             url="https://example.com/2",
             source="semanticscholar",
+            source_name="semanticscholar",
             published_date=datetime(2024, 2, 10),
             fetched_date=datetime(2024, 2, 15),
             categories="cs.LG",
@@ -58,6 +60,7 @@ def sample_articles(isolated_test_db):
             abstract="Third test abstract about computer vision.",
             url="https://example.com/3",
             source="arxiv",
+            source_name="arXiv cs.AI",
             published_date=datetime(2024, 3, 5),
             fetched_date=datetime(2024, 3, 10),
             categories="cs.CV",
@@ -75,6 +78,30 @@ def sample_articles(isolated_test_db):
     yield articles
 
     session.close()
+
+
+class TestListSources:
+    """Test GET /api/articles/sources endpoint."""
+
+    def test_list_sources(self, client, sample_articles):
+        """Test listing distinct sources."""
+        response = client.get("/api/articles/sources")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert len(data) == 2  # arxiv and semanticscholar
+
+        # Check structure
+        for source in data:
+            assert "source" in source
+            assert "source_name" in source
+            assert "count" in source
+
+    def test_list_sources_empty(self, client, isolated_test_db):
+        """Test listing sources when no articles exist."""
+        response = client.get("/api/articles/sources")
+        assert response.status_code == 200
+        assert response.json() == []
 
 
 class TestListArticles:
@@ -119,6 +146,15 @@ class TestListArticles:
         data = response.json()
         assert data["total"] == 2  # Only 2 arxiv articles
         assert all(article["source"] == "arxiv" for article in data["articles"])
+
+    def test_list_articles_filter_by_source_name(self, client, sample_articles):
+        """Test filtering by source_name."""
+        response = client.get("/api/articles?source_name=semanticscholar")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["total"] == 1
+        assert data["articles"][0]["source_name"] == "semanticscholar"
 
     def test_list_articles_sort_by_rating(self, client, sample_articles):
         """Test sorting by rating."""

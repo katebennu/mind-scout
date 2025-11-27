@@ -13,6 +13,12 @@ import {
   Stack,
   Rating,
   Link,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormControlLabel,
+  Switch,
 } from '@mui/material'
 import {
   CheckCircle,
@@ -30,14 +36,49 @@ export default function Articles() {
   const [total, setTotal] = useState(0)
   const pageSize = 10
 
+  // Filter and sort state
+  const [unreadOnly, setUnreadOnly] = useState(false)
+  const [sourceName, setSourceName] = useState('')
+  const [sortOption, setSortOption] = useState('fetched_date_desc')
+  const [sources, setSources] = useState([])
+
+  // Fetch sources for filter dropdown
+  useEffect(() => {
+    const fetchSources = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/articles/sources`)
+        const data = await response.json()
+        setSources(data)
+      } catch (error) {
+        console.error('Error fetching sources:', error)
+      }
+    }
+    fetchSources()
+  }, [])
+
+  // Fetch articles when filters or page changes
   useEffect(() => {
     fetchArticles()
-  }, [page])
+  }, [page, unreadOnly, sourceName, sortOption])
 
   const fetchArticles = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/articles?page=${page}&page_size=${pageSize}`)
+      const [sortBy, sortOrder] = sortOption.split('_').length === 3
+        ? [sortOption.split('_').slice(0, 2).join('_'), sortOption.split('_')[2]]
+        : [sortOption.split('_')[0], sortOption.split('_')[1]]
+
+      const params = new URLSearchParams({
+        page: page.toString(),
+        page_size: pageSize.toString(),
+        sort_by: sortBy,
+        sort_order: sortOrder,
+      })
+
+      if (unreadOnly) params.append('unread_only', 'true')
+      if (sourceName) params.append('source_name', sourceName)
+
+      const response = await fetch(`${API_BASE}/articles?${params}`)
       const data = await response.json()
       setArticles(data.articles)
       setTotal(data.total)
@@ -45,6 +86,12 @@ export default function Articles() {
       console.error('Error fetching articles:', error)
     }
     setLoading(false)
+  }
+
+  // Reset to page 1 when filters change
+  const handleFilterChange = (setter) => (value) => {
+    setPage(1)
+    setter(value)
   }
 
   const handleRate = async (id, rating) => {
@@ -92,6 +139,56 @@ export default function Articles() {
         <Typography variant="body2" color="text.secondary">
           {total} total
         </Typography>
+      </Box>
+
+      {/* Filters and Sort Controls */}
+      <Box
+        display="flex"
+        gap={2}
+        mb={3}
+        flexWrap="wrap"
+        alignItems="center"
+      >
+        <FormControlLabel
+          control={
+            <Switch
+              checked={unreadOnly}
+              onChange={(e) => handleFilterChange(setUnreadOnly)(e.target.checked)}
+              color="primary"
+            />
+          }
+          label="Unread only"
+        />
+
+        <FormControl size="small" sx={{ minWidth: 200 }}>
+          <InputLabel>Source</InputLabel>
+          <Select
+            value={sourceName}
+            label="Source"
+            onChange={(e) => handleFilterChange(setSourceName)(e.target.value)}
+          >
+            <MenuItem value="">All Sources</MenuItem>
+            {sources.map((src) => (
+              <MenuItem key={src.source_name} value={src.source_name}>
+                {src.source_name} ({src.count})
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel>Sort by</InputLabel>
+          <Select
+            value={sortOption}
+            label="Sort by"
+            onChange={(e) => handleFilterChange(setSortOption)(e.target.value)}
+          >
+            <MenuItem value="fetched_date_desc">Recently Fetched</MenuItem>
+            <MenuItem value="published_date_desc">Recently Published</MenuItem>
+            <MenuItem value="published_date_asc">Oldest First</MenuItem>
+            <MenuItem value="rating_desc">Highest Rated</MenuItem>
+          </Select>
+        </FormControl>
       </Box>
 
       <Stack spacing={2}>

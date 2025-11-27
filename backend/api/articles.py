@@ -49,14 +49,37 @@ class RateArticleRequest(BaseModel):
     rating: int  # 1-5
 
 
+@router.get("/sources")
+def list_sources():
+    """Get list of distinct source names for filtering."""
+    session = get_session()
+
+    try:
+        from sqlalchemy import func
+        results = session.query(
+            Article.source,
+            Article.source_name,
+            func.count(Article.id).label('count')
+        ).group_by(Article.source, Article.source_name).order_by(func.count(Article.id).desc()).all()
+
+        return [
+            {"source": r.source, "source_name": r.source_name or r.source, "count": r.count}
+            for r in results
+        ]
+
+    finally:
+        session.close()
+
+
 @router.get("", response_model=ArticleListResponse)
 def list_articles(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     unread_only: bool = False,
     source: Optional[str] = None,
-    sort_by: str = Query("fetched_date", regex="^(fetched_date|published_date|rating)$"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$")
+    source_name: Optional[str] = None,
+    sort_by: str = Query("fetched_date", pattern="^(fetched_date|published_date|rating)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$")
 ):
     """List articles with pagination and filters."""
     session = get_session()
@@ -71,6 +94,9 @@ def list_articles(
 
         if source:
             query = query.filter(Article.source == source)
+
+        if source_name:
+            query = query.filter(Article.source_name == source_name)
 
         # Count total before pagination
         total = query.count()
