@@ -18,6 +18,7 @@ class ArticleResponse(BaseModel):
     abstract: Optional[str]
     url: str
     source: str
+    source_name: Optional[str]
     published_date: Optional[datetime]
     fetched_date: datetime
     categories: Optional[str]

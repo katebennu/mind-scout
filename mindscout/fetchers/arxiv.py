@@ -51,6 +51,7 @@ def fetch_arxiv_category(category: str) -> List[Dict]:
         article = {
             "source_id": arxiv_id,
             "source": "arxiv",
+            "source_name": f"arXiv {category}",
             "title": entry.title,
             "authors": authors,
             "abstract": entry.summary,

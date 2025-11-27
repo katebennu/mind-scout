@@ -122,7 +122,7 @@ export default function Articles() {
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
                     <Chip
-                      label={article.source}
+                      label={article.source_name || article.source}
                       size="small"
                       color="primary"
                       variant="outlined"
@@ -134,7 +134,7 @@ export default function Articles() {
                         variant="outlined"
                       />
                     )}
-                    {article.citation_count && (
+                    {article.citation_count > 0 && (
                       <Chip
                         icon={<BarChart />}
                         label={`${article.citation_count} citations`}
