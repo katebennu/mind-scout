@@ -12,6 +12,11 @@ Mind Scout uses agentic workflows to discover, process, and recommend AI researc
 - **Advanced search** - Filter by date, author, keywords, citations, and more
 - **Beautiful CLI** - Rich terminal formatting with tables and panels
 
+### 📡 RSS Subscriptions
+- **Subscribe to any RSS feed** - Tech blogs, newsletters, podcasts
+- **Automatic notifications** - Get notified of new articles
+- **Feed management** - Add, refresh, and manage subscriptions via UI or API
+
 ### 🤖 AI-Powered Intelligence
 - **Smart summarization** - Claude 3.5 Haiku generates concise summaries
 - **Automatic topic extraction** - AI identifies key topics and themes
@@ -46,7 +51,7 @@ Mind Scout uses agentic workflows to discover, process, and recommend AI researc
 
 ### 🌐 Web API & Frontend
 - **FastAPI backend** - Production-ready REST API with 11 endpoints
-- **React web UI** - Modern, responsive interface with Tailwind CSS
+- **React web UI** - Modern, responsive interface with Material UI
 - **OpenAPI docs** - Auto-generated API documentation at `/docs`
 - **CORS-enabled** - Ready for web and mobile frontends
 - **Pagination & filtering** - Efficient data retrieval
@@ -233,7 +238,7 @@ For detailed command options and examples, run `mindscout <command> --help` or s
 - ✅ Pagination, filtering, and sorting
 - ✅ Full CRUD operations for all features
 - ✅ Type-safe with Pydantic models
-- ⏳ React-based web interface - planned
+- ✅ React-based web interface with Material UI
 - ⏳ Daily digest emails - planned
 - ⏳ Export functionality - planned
 
