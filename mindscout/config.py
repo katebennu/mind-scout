@@ -1,14 +1,102 @@
 """Configuration management for Mind Scout."""
 
+import logging
 import os
+from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
-# Base directory for Mind Scout data
-DATA_DIR = Path(os.getenv("MINDSCOUT_DATA_DIR", Path.home() / ".mindscout"))
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Database location
-DB_PATH = DATA_DIR / "mindscout.db"
+
+class Settings(BaseSettings):
+    """Application settings with environment variable support."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="MINDSCOUT_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # Paths
+    data_dir: Path = Field(
+        default=Path.home() / ".mindscout",
+        description="Base directory for Mind Scout data"
+    )
+
+    # Database
+    database_url: Optional[str] = Field(
+        default=None,
+        description="Database URL (defaults to SQLite in data_dir)"
+    )
+
+    # API Keys
+    anthropic_api_key: Optional[str] = Field(
+        default=None,
+        description="Anthropic API key for Claude"
+    )
+
+    # API Settings
+    api_host: str = Field(default="0.0.0.0", description="API server host")
+    api_port: int = Field(default=8000, description="API server port")
+
+    # Rate Limiting
+    rate_limit_requests: int = Field(
+        default=100,
+        description="Maximum requests per minute"
+    )
+    rate_limit_process: int = Field(
+        default=10,
+        description="Maximum process requests per minute (LLM calls)"
+    )
+
+    # Logging
+    log_level: str = Field(default="INFO", description="Logging level")
+
+    @property
+    def db_path(self) -> Path:
+        """Get database path."""
+        return self.data_dir / "mindscout.db"
+
+    @property
+    def chroma_path(self) -> Path:
+        """Get ChromaDB path."""
+        return self.data_dir / "chroma"
+
+    @property
+    def effective_database_url(self) -> str:
+        """Get effective database URL."""
+        if self.database_url:
+            return self.database_url
+        return f"sqlite:///{self.db_path}"
+
+    def setup_directories(self):
+        """Create necessary directories."""
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+
+    def setup_logging(self):
+        """Configure logging."""
+        logging.basicConfig(
+            level=getattr(logging, self.log_level.upper()),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Get cached settings instance."""
+    settings = Settings()
+    settings.setup_directories()
+    return settings
+
+
+# Legacy compatibility - these will be deprecated
+_settings = get_settings()
+DATA_DIR = _settings.data_dir
+DB_PATH = _settings.db_path
 
 # arXiv RSS feeds by category
 ARXIV_FEEDS = {

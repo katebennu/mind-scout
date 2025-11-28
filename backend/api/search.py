@@ -1,11 +1,17 @@
 """Search API endpoints."""
 
 from typing import List
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from mindscout.vectorstore import VectorStore
+from mindscout.config import get_settings
 from backend.api.articles import ArticleResponse
+
+settings = get_settings()
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter()
 
@@ -16,7 +22,9 @@ class SearchResult(BaseModel):
 
 
 @router.get("", response_model=List[SearchResult])
+@limiter.limit(f"{settings.rate_limit_requests}/minute")
 def semantic_search(
+    request: Request,
     q: str = Query(..., min_length=3, description="Search query"),
     limit: int = Query(10, ge=1, le=50)
 ):

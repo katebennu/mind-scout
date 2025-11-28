@@ -1,6 +1,5 @@
 """Pytest configuration and shared fixtures for test isolation."""
 
-import os
 import sys
 from pathlib import Path
 
@@ -31,14 +30,29 @@ def isolated_test_db(tmp_path, monkeypatch):
     from mindscout import database
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-    # Create a new engine pointing to the test database
-    test_engine = create_engine(f"sqlite:///{tmp_path / 'mindscout.db'}")
+    test_db_path = tmp_path / 'mindscout.db'
+
+    # Create a new sync engine pointing to the test database
+    test_engine = create_engine(f"sqlite:///{test_db_path}")
     test_session_factory = sessionmaker(bind=test_engine)
 
-    # Patch the database module's engine and Session
+    # Create a new async engine pointing to the test database
+    test_async_engine = create_async_engine(f"sqlite+aiosqlite:///{test_db_path}")
+    test_async_session_factory = async_sessionmaker(
+        bind=test_async_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    # Patch the database module's sync engine and Session
     monkeypatch.setattr(database, "engine", test_engine)
     monkeypatch.setattr(database, "Session", test_session_factory)
+
+    # Patch the database module's async engine and Session
+    monkeypatch.setattr(database, "async_engine", test_async_engine)
+    monkeypatch.setattr(database, "AsyncSessionLocal", test_async_session_factory)
 
     # Initialize the test database schema
     database.init_db()

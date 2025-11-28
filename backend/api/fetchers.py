@@ -1,10 +1,15 @@
 """Paper fetcher API endpoints for arXiv and Semantic Scholar."""
 
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
-from mindscout.config import ARXIV_FEEDS, DEFAULT_CATEGORIES
+from mindscout.config import ARXIV_FEEDS, DEFAULT_CATEGORIES, get_settings
+
+settings = get_settings()
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter()
 
@@ -57,12 +62,13 @@ def get_arxiv_categories():
 
 
 @router.post("/arxiv", response_model=FetchResponse)
-def fetch_arxiv(request: ArxivFetchRequest = None):
+@limiter.limit(f"{settings.rate_limit_requests}/minute")
+def fetch_arxiv(request: Request, body: ArxivFetchRequest = None):
     """Fetch new papers from arXiv using the arXiv API.
 
     Args:
-        request: Optional request body with query, categories, author, title, and max_results.
-                 If not provided, fetches default categories.
+        body: Optional request body with query, categories, author, title, and max_results.
+              If not provided, fetches default categories.
     """
     from mindscout.fetchers.arxiv_advanced import ArxivAdvancedFetcher
 
@@ -72,23 +78,23 @@ def fetch_arxiv(request: ArxivFetchRequest = None):
     title = None
     max_results = 100
 
-    if request:
-        query = request.query.strip() if request.query else None
-        author = request.author.strip() if request.author else None
-        title = request.title.strip() if request.title else None
+    if body:
+        query = body.query.strip() if body.query else None
+        author = body.author.strip() if body.author else None
+        title = body.title.strip() if body.title else None
 
-        if request.categories:
+        if body.categories:
             # Validate categories
-            invalid = [c for c in request.categories if c not in ARXIV_FEEDS]
+            invalid = [c for c in body.categories if c not in ARXIV_FEEDS]
             if invalid:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid categories: {', '.join(invalid)}"
                 )
-            categories = request.categories
+            categories = body.categories
 
-        if request.max_results:
-            max_results = min(request.max_results, 500)  # Cap at 500
+        if body.max_results:
+            max_results = min(body.max_results, 500)  # Cap at 500
 
     # If no search criteria provided, use default categories
     if not query and not categories and not author and not title:
@@ -132,16 +138,17 @@ def fetch_arxiv(request: ArxivFetchRequest = None):
 
 
 @router.post("/semanticscholar", response_model=FetchResponse)
-def fetch_semantic_scholar(request: SemanticScholarFetchRequest):
+@limiter.limit(f"{settings.rate_limit_requests}/minute")
+def fetch_semantic_scholar(request: Request, body: SemanticScholarFetchRequest):
     """Fetch papers from Semantic Scholar by search query.
 
     Args:
-        request: Search parameters including query, limit, year filter,
-                 and minimum citation count.
+        body: Search parameters including query, limit, year filter,
+              and minimum citation count.
     """
     from mindscout.fetchers.semanticscholar import SemanticScholarFetcher
 
-    if not request.query or not request.query.strip():
+    if not body.query or not body.query.strip():
         raise HTTPException(status_code=400, detail="Query is required")
 
     try:
@@ -149,10 +156,10 @@ def fetch_semantic_scholar(request: SemanticScholarFetchRequest):
 
         # Fetch papers
         articles = fetcher.fetch(
-            query=request.query.strip(),
-            limit=min(request.limit or 50, 100),  # Cap at 100
-            year=request.year,
-            min_citations=request.min_citations,
+            query=body.query.strip(),
+            limit=min(body.limit or 50, 100),  # Cap at 100
+            year=body.year,
+            min_citations=body.min_citations,
         )
 
         # Store in database
@@ -162,14 +169,15 @@ def fetch_semantic_scholar(request: SemanticScholarFetchRequest):
         return FetchResponse(
             success=True,
             new_articles=new_count,
-            message=f"Fetched {new_count} new papers from Semantic Scholar for '{request.query}'"
+            message=f"Fetched {new_count} new papers from Semantic Scholar for '{body.query}'"
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/process", response_model=FetchResponse)
-def process_unprocessed():
+@limiter.limit(f"{settings.rate_limit_process}/minute")
+def process_unprocessed(request: Request):
     """Process unprocessed articles with LLM to extract topics/summaries."""
     from mindscout.processors.content import ContentProcessor
 

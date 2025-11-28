@@ -1,5 +1,6 @@
 """Advanced arXiv API fetcher with search and filtering capabilities."""
 
+import logging
 import time
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
@@ -7,7 +8,19 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 import requests
 
-from mindscout.database import Article, get_session
+from mindscout.database import Article, get_db_session
+
+logger = logging.getLogger(__name__)
+
+
+class ArxivAPIError(Exception):
+    """Exception raised for arXiv API errors."""
+    pass
+
+
+class ArxivRateLimitError(ArxivAPIError):
+    """Exception raised when arXiv rate limit is exceeded."""
+    pass
 
 
 class ArxivAdvancedFetcher:
@@ -129,15 +142,28 @@ class ArxivAdvancedFetcher:
                     # Rate limit hit
                     if retry < max_retries - 1:
                         wait_time = retry_delay * (2 ** retry)  # Exponential backoff
-                        print(f"arXiv rate limit hit. Waiting {wait_time}s before retry {retry + 1}/{max_retries}...")
+                        logger.warning(
+                            f"arXiv rate limit hit. Waiting {wait_time}s before retry "
+                            f"{retry + 1}/{max_retries}"
+                        )
                         time.sleep(wait_time)
                     else:
-                        raise Exception(
+                        logger.error("arXiv rate limit exceeded after all retries")
+                        raise ArxivRateLimitError(
                             "arXiv rate limit exceeded. Please wait a few minutes and try again. "
                             "arXiv allows about 1 request per 3 seconds."
                         )
                 else:
-                    raise
+                    logger.error(f"arXiv API HTTP error: {e.response.status_code}")
+                    raise ArxivAPIError(f"arXiv API error: {e}")
+
+            except requests.exceptions.ConnectionError as e:
+                logger.error(f"Connection error to arXiv: {e}")
+                raise ArxivAPIError(f"Failed to connect to arXiv: {e}")
+
+            except requests.exceptions.Timeout as e:
+                logger.error(f"Timeout connecting to arXiv: {e}")
+                raise ArxivAPIError(f"Timeout connecting to arXiv: {e}")
 
         return []
 
@@ -242,6 +268,11 @@ class ArxivAdvancedFetcher:
         Returns:
             Number of new articles added
         """
+        logger.info(
+            f"Fetching arXiv papers: keywords={keywords}, categories={categories}, "
+            f"author={author}, max_results={max_results}"
+        )
+
         articles = self.search(
             keywords=keywords,
             categories=categories,
@@ -254,10 +285,9 @@ class ArxivAdvancedFetcher:
             sort_order=sort_order,
         )
 
-        session = get_session()
         new_count = 0
 
-        try:
+        with get_db_session() as session:
             for article_data in articles:
                 # Check if already exists
                 existing = session.query(Article).filter_by(
@@ -272,13 +302,7 @@ class ArxivAdvancedFetcher:
                 session.add(article)
                 new_count += 1
 
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            raise e
-        finally:
-            session.close()
-
+        logger.info(f"Stored {new_count} new arXiv articles (fetched {len(articles)} total)")
         return new_count
 
 

@@ -1,11 +1,24 @@
 """Semantic Scholar API fetcher with citation data."""
 
+import logging
 import time
 from datetime import datetime
 from typing import List, Dict, Optional
 import requests
 
 from mindscout.fetchers.base import BaseFetcher
+
+logger = logging.getLogger(__name__)
+
+
+class SemanticScholarAPIError(Exception):
+    """Exception raised for Semantic Scholar API errors."""
+    pass
+
+
+class SemanticScholarRateLimitError(SemanticScholarAPIError):
+    """Exception raised when Semantic Scholar rate limit is exceeded."""
+    pass
 
 
 class SemanticScholarFetcher(BaseFetcher):
@@ -123,19 +136,28 @@ class SemanticScholarFetcher(BaseFetcher):
                         # Rate limit hit
                         if retry < max_retries - 1:
                             wait_time = retry_delay * (2 ** retry)  # Exponential backoff
-                            print(f"⚠️  Rate limit hit. Waiting {wait_time} seconds before retry {retry + 1}/{max_retries}...")
+                            logger.warning(
+                                f"Semantic Scholar rate limit hit. Waiting {wait_time}s "
+                                f"before retry {retry + 1}/{max_retries}"
+                            )
                             time.sleep(wait_time)
                         else:
-                            print(f"❌ Rate limit exceeded after {max_retries} retries.")
-                            print(f"   Semantic Scholar allows ~100 requests per 5 minutes.")
-                            print(f"   Please wait a few minutes and try again, or get an API key at:")
-                            print(f"   https://www.semanticscholar.org/product/api")
+                            logger.error(
+                                "Semantic Scholar rate limit exceeded after all retries. "
+                                "Returning partial results."
+                            )
                             return articles  # Return what we have so far
                     else:
-                        print(f"Error fetching from Semantic Scholar: {e}")
+                        logger.error(f"Semantic Scholar API HTTP error: {e.response.status_code}")
                         break
+                except requests.exceptions.ConnectionError as e:
+                    logger.error(f"Connection error to Semantic Scholar: {e}")
+                    break
+                except requests.exceptions.Timeout as e:
+                    logger.error(f"Timeout connecting to Semantic Scholar: {e}")
+                    break
                 except requests.exceptions.RequestException as e:
-                    print(f"Error fetching from Semantic Scholar: {e}")
+                    logger.error(f"Request error fetching from Semantic Scholar: {e}")
                     break
 
             if len(articles) >= limit:
@@ -220,7 +242,7 @@ class SemanticScholarFetcher(BaseFetcher):
             return self.normalize_article(article)
 
         except Exception as e:
-            print(f"Error parsing paper: {e}")
+            logger.warning(f"Error parsing paper: {e}")
             return None
 
     def get_paper_by_arxiv_id(self, arxiv_id: str) -> Optional[Dict]:
@@ -279,13 +301,12 @@ def enrich_arxiv_papers_with_citations(limit: int = 100) -> int:
     Returns:
         Number of papers updated
     """
-    from mindscout.database import get_session, Article
+    from mindscout.database import get_db_session, Article
 
     fetcher = SemanticScholarFetcher()
-    session = get_session()
     updated = 0
 
-    try:
+    with get_db_session() as session:
         # Get arXiv papers without citation data
         papers = session.query(Article).filter(
             Article.source == "arxiv",
@@ -307,12 +328,5 @@ def enrich_arxiv_papers_with_citations(limit: int = 100) -> int:
             # Rate limiting
             time.sleep(1)
 
-        session.commit()
-
-    except Exception as e:
-        session.rollback()
-        print(f"Error enriching papers: {e}")
-    finally:
-        session.close()
-
+    logger.info(f"Enriched {updated} arXiv papers with citation data")
     return updated

@@ -1,8 +1,11 @@
 """Base fetcher class for all content sources."""
 
+import logging
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
-from mindscout.database import Article, get_session
+from mindscout.database import Article, get_db_session
+
+logger = logging.getLogger(__name__)
 
 
 class BaseFetcher(ABC):
@@ -34,10 +37,9 @@ class BaseFetcher(ABC):
         Returns:
             Number of new articles added
         """
-        session = get_session()
         new_count = 0
 
-        try:
+        with get_db_session() as session:
             for article_data in articles:
                 # Check if already exists
                 existing = session.query(Article).filter_by(
@@ -55,13 +57,7 @@ class BaseFetcher(ABC):
                 session.add(article)
                 new_count += 1
 
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            raise e
-        finally:
-            session.close()
-
+        logger.info(f"Stored {new_count} new articles from {self.source_name}")
         return new_count
 
     def _update_article(self, existing: Article, new_data: Dict):

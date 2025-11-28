@@ -1,13 +1,16 @@
 """Generic RSS feed fetcher."""
 
 import hashlib
+import logging
 from datetime import datetime
 from typing import List, Dict, Optional
 import feedparser
 import requests
 
 from mindscout.fetchers.base import BaseFetcher
-from mindscout.database import Article, RSSFeed, get_session
+from mindscout.database import Article, RSSFeed, get_db_session
+
+logger = logging.getLogger(__name__)
 
 
 class RSSFetcher(BaseFetcher):
@@ -145,14 +148,16 @@ class RSSFetcher(BaseFetcher):
         Returns:
             Dictionary with counts: {"new_count": int}
         """
-        session = get_session()
         new_count = 0
 
-        try:
+        with get_db_session() as session:
             # Get the feed object in this session
             db_feed = session.query(RSSFeed).filter_by(id=feed.id).first()
             if not db_feed:
+                logger.error(f"Feed with id {feed.id} not found")
                 raise ValueError(f"Feed with id {feed.id} not found")
+
+            logger.info(f"Fetching RSS feed: {db_feed.title or db_feed.url}")
 
             # Parse the feed
             parsed = feedparser.parse(feed.url)
@@ -192,14 +197,7 @@ class RSSFetcher(BaseFetcher):
                 session.add(article)
                 new_count += 1
 
-            session.commit()
-
-        except Exception as e:
-            session.rollback()
-            raise e
-        finally:
-            session.close()
-
+        logger.info(f"Fetched {new_count} new articles from {source_name}")
         return {
             "new_count": new_count,
         }
@@ -210,26 +208,22 @@ class RSSFetcher(BaseFetcher):
         Returns:
             Dictionary with total counts
         """
-        session = get_session()
         total_new = 0
         feeds_checked = 0
 
-        try:
+        with get_db_session() as session:
             feeds = session.query(RSSFeed).filter(RSSFeed.is_active == True).all()
 
-            for feed in feeds:
-                try:
-                    result = self.fetch_feed(feed)
-                    total_new += result["new_count"]
-                    feeds_checked += 1
-                except Exception as e:
-                    # Log error but continue with other feeds
-                    print(f"Error fetching feed {feed.url}: {e}")
-                    continue
+        for feed in feeds:
+            try:
+                result = self.fetch_feed(feed)
+                total_new += result["new_count"]
+                feeds_checked += 1
+            except Exception as e:
+                logger.error(f"Error fetching feed {feed.url}: {e}")
+                continue
 
-        finally:
-            session.close()
-
+        logger.info(f"Refreshed {feeds_checked} feeds, found {total_new} new articles")
         return {
             "feeds_checked": feeds_checked,
             "new_count": total_new,
