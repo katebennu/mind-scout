@@ -82,11 +82,101 @@ class ContentProcessor:
         limit: Optional[int] = None,
         force: bool = False,
         only_unprocessed: bool = True,
+        batch_size: int = 10,
     ) -> tuple[int, int]:
-        """Process multiple articles in batch.
+        """Process multiple articles using multi-article prompts.
+
+        This method batches articles together in single LLM calls for efficiency.
+        Reduces API calls by ~5-10x compared to processing one at a time.
 
         Args:
             limit: Maximum number of articles to process. If None, processes all.
+            force: If True, reprocess even if already processed
+            only_unprocessed: If True, only process unprocessed articles
+            batch_size: Number of articles to process per LLM call (default 10)
+
+        Returns:
+            Tuple of (processed_count, failed_count)
+        """
+        session = get_session()
+        processed_count = 0
+        failed_count = 0
+
+        try:
+            # Ensure LLM is initialized
+            self._ensure_llm()
+
+            # Build query
+            query = session.query(Article)
+
+            if only_unprocessed and not force:
+                query = query.filter(Article.processed == False)  # noqa: E712
+
+            if limit:
+                query = query.limit(limit)
+
+            articles = query.all()
+
+            # Process in batches
+            for i in range(0, len(articles), batch_size):
+                batch = articles[i : i + batch_size]
+
+                # Prepare batch data for LLM
+                batch_data = [
+                    {
+                        "id": str(article.id),
+                        "title": article.title,
+                        "abstract": article.abstract or "",
+                    }
+                    for article in batch
+                ]
+
+                # Extract topics for all articles in batch with single API call
+                topics_map = self.llm.extract_topics_batch(batch_data, max_topics=5)
+
+                # Update articles with results
+                for article in batch:
+                    article_id = str(article.id)
+                    if article_id in topics_map and topics_map[article_id]:
+                        article.topics = json.dumps(topics_map[article_id])
+                        article.processed = True
+                        article.processing_date = datetime.utcnow()
+                        processed_count += 1
+
+                        # Create interest-based notification
+                        self._create_interest_notification(article, session)
+                    else:
+                        # Fall back to individual processing if batch failed
+                        success = self.process_article(article, force=force)
+                        if success:
+                            processed_count += 1
+                            self._create_interest_notification(article, session)
+                        else:
+                            failed_count += 1
+
+                # Commit after each batch
+                session.commit()
+
+        except Exception as e:
+            session.rollback()
+            print(f"Batch processing error: {e}")
+        finally:
+            session.close()
+
+        return processed_count, failed_count
+
+    def process_batch_legacy(
+        self,
+        limit: Optional[int] = None,
+        force: bool = False,
+        only_unprocessed: bool = True,
+    ) -> tuple[int, int]:
+        """Process articles one at a time (legacy method).
+
+        Use process_batch() instead for better efficiency.
+
+        Args:
+            limit: Maximum number of articles to process
             force: If True, reprocess even if already processed
             only_unprocessed: If True, only process unprocessed articles
 
@@ -98,7 +188,6 @@ class ContentProcessor:
         failed_count = 0
 
         try:
-            # Build query
             query = session.query(Article)
 
             if only_unprocessed and not force:
@@ -113,14 +202,11 @@ class ContentProcessor:
                 success = self.process_article(article, force=force)
                 if success:
                     processed_count += 1
-                    # Create interest-based notification if topics match user interests
                     self._create_interest_notification(article, session)
                 else:
                     if not (article.processed and not force):
-                        # Only count as failed if we actually tried to process
                         failed_count += 1
 
-                # Commit after each article to save progress
                 session.commit()
 
         except Exception as e:
@@ -130,6 +216,97 @@ class ContentProcessor:
             session.close()
 
         return processed_count, failed_count
+
+    def create_async_batch(self, limit: Optional[int] = None) -> str:
+        """Create an async batch for processing (50% cheaper).
+
+        Uses Anthropic's Message Batches API. Results available within 24 hours.
+        Ideal for scheduled background jobs where immediate results aren't needed.
+
+        Args:
+            limit: Maximum number of articles to include in batch
+
+        Returns:
+            Batch ID for checking status and retrieving results later
+        """
+        session = get_session()
+
+        try:
+            self._ensure_llm()
+
+            # Get unprocessed articles
+            query = session.query(Article).filter(Article.processed == False)  # noqa: E712
+
+            if limit:
+                query = query.limit(limit)
+
+            articles = query.all()
+
+            if not articles:
+                raise ValueError("No unprocessed articles found")
+
+            # Prepare batch data
+            batch_data = [
+                {
+                    "id": str(article.id),
+                    "title": article.title,
+                    "abstract": article.abstract or "",
+                }
+                for article in articles
+            ]
+
+            # Create async batch
+            batch_id = self.llm.create_topic_extraction_batch(batch_data)
+            return batch_id
+
+        finally:
+            session.close()
+
+    def apply_batch_results(self, batch_id: str) -> tuple[int, int]:
+        """Apply results from a completed async batch to articles.
+
+        Args:
+            batch_id: The batch ID from create_async_batch
+
+        Returns:
+            Tuple of (updated_count, failed_count)
+        """
+        session = get_session()
+        updated_count = 0
+        failed_count = 0
+
+        try:
+            self._ensure_llm()
+
+            # Get batch results
+            results = self.llm.get_batch_results(batch_id)
+
+            for article_id, topics in results.items():
+                article = session.query(Article).filter_by(id=int(article_id)).first()
+                if not article:
+                    failed_count += 1
+                    continue
+
+                if topics:
+                    article.topics = json.dumps(topics)
+                    article.processed = True
+                    article.processing_date = datetime.utcnow()
+                    updated_count += 1
+
+                    # Create notification if matches interests
+                    self._create_interest_notification(article, session)
+                else:
+                    failed_count += 1
+
+            session.commit()
+
+        except Exception as e:
+            session.rollback()
+            print(f"Error applying batch results: {e}")
+        finally:
+            session.close()
+
+        return updated_count, failed_count
 
     def get_processing_stats(self) -> dict:
         """Get statistics about processed articles.

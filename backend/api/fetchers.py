@@ -228,3 +228,116 @@ async def run_daily_job(request: Request):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- Async Batch Processing (50% cheaper via Anthropic Message Batches API) ---
+
+
+class BatchCreateRequest(BaseModel):
+    limit: Optional[int] = 100
+
+
+class BatchResponse(BaseModel):
+    batch_id: str
+    message: str
+
+
+class BatchStatusResponse(BaseModel):
+    batch_id: str
+    status: str
+    counts: dict
+    created_at: Optional[str] = None
+    ended_at: Optional[str] = None
+
+
+class BatchResultsResponse(BaseModel):
+    success: bool
+    updated: int
+    failed: int
+    message: str
+
+
+@router.post("/batch/create", response_model=BatchResponse)
+@limiter.limit(f"{settings.rate_limit_process}/minute")
+def create_processing_batch(request: Request, body: BatchCreateRequest = None):
+    """Create an async batch for processing unprocessed articles.
+
+    Uses Anthropic's Message Batches API which is 50% cheaper than standard API calls.
+    Results are typically available within a few minutes to 24 hours.
+
+    Use GET /api/fetch/batch/{batch_id}/status to check progress.
+    Use POST /api/fetch/batch/{batch_id}/apply to apply results when complete.
+    """
+    from mindscout.processors.content import ContentProcessor
+
+    limit = body.limit if body else 100
+
+    try:
+        processor = ContentProcessor()
+        batch_id = processor.create_async_batch(limit=limit)
+
+        return BatchResponse(
+            batch_id=batch_id,
+            message=f"Created async batch for up to {limit} articles"
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/batch/{batch_id}/status", response_model=BatchStatusResponse)
+def get_batch_status(batch_id: str):
+    """Get the status of an async processing batch."""
+    from mindscout.processors.llm import LLMClient
+
+    try:
+        llm = LLMClient()
+        status = llm.get_batch_status(batch_id)
+
+        return BatchStatusResponse(
+            batch_id=status["id"],
+            status=status["status"],
+            counts=status["counts"],
+            created_at=status["created_at"],
+            ended_at=status["ended_at"],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/batch/{batch_id}/apply", response_model=BatchResultsResponse)
+@limiter.limit(f"{settings.rate_limit_process}/minute")
+def apply_batch_results(request: Request, batch_id: str):
+    """Apply results from a completed async batch to articles.
+
+    Only call this after the batch status is 'ended'.
+    """
+    from mindscout.processors.content import ContentProcessor
+    from mindscout.processors.llm import LLMClient
+
+    try:
+        # Check batch is complete
+        llm = LLMClient()
+        status = llm.get_batch_status(batch_id)
+
+        if status["status"] != "ended":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Batch is not complete. Status: {status['status']}"
+            )
+
+        # Apply results
+        processor = ContentProcessor()
+        updated, failed = processor.apply_batch_results(batch_id)
+
+        return BatchResultsResponse(
+            success=True,
+            updated=updated,
+            failed=failed,
+            message=f"Applied batch results: {updated} updated, {failed} failed"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
