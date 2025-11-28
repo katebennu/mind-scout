@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api import articles, recommendations, profile, search, subscriptions, notifications
+from backend.api import articles, recommendations, profile, search, subscriptions, notifications, fetchers
 
 app = FastAPI(
     title="Mind Scout API",
@@ -27,6 +27,7 @@ app.include_router(profile.router, prefix="/api/profile", tags=["profile"])
 app.include_router(search.router, prefix="/api/search", tags=["search"])
 app.include_router(subscriptions.router, prefix="/api/subscriptions", tags=["subscriptions"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(fetchers.router, prefix="/api/fetch", tags=["fetchers"])
 
 
 @app.get("/")

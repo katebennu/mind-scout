@@ -107,16 +107,39 @@ class ArxivAdvancedFetcher:
             "sortOrder": sort_order,
         }
 
-        response = self.session.get(self.BASE_URL, params=params)
-        response.raise_for_status()
+        # Retry logic for rate limiting
+        max_retries = 3
+        retry_delay = 5  # Start with 5 seconds
 
-        # Parse XML response
-        articles = self._parse_feed(response.text)
+        for retry in range(max_retries):
+            try:
+                response = self.session.get(self.BASE_URL, params=params, timeout=30)
+                response.raise_for_status()
 
-        # Be nice to arXiv API - rate limit
-        time.sleep(3)
+                # Parse XML response
+                articles = self._parse_feed(response.text)
 
-        return articles
+                # Be nice to arXiv API - rate limit
+                time.sleep(3)
+
+                return articles
+
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 429:
+                    # Rate limit hit
+                    if retry < max_retries - 1:
+                        wait_time = retry_delay * (2 ** retry)  # Exponential backoff
+                        print(f"arXiv rate limit hit. Waiting {wait_time}s before retry {retry + 1}/{max_retries}...")
+                        time.sleep(wait_time)
+                    else:
+                        raise Exception(
+                            "arXiv rate limit exceeded. Please wait a few minutes and try again. "
+                            "arXiv allows about 1 request per 3 seconds."
+                        )
+                else:
+                    raise
+
+        return []
 
     def _parse_feed(self, xml_text: str) -> List[Dict]:
         """Parse arXiv API XML response.

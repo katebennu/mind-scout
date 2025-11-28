@@ -19,12 +19,23 @@ import {
   MenuItem,
   FormControlLabel,
   Switch,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Alert,
+  Checkbox,
+  ListItemText,
 } from '@mui/material'
 import {
   CheckCircle,
   Circle,
   Launch,
   BarChart,
+  Download,
+  Science,
+  School,
 } from '@mui/icons-material'
 
 const API_BASE = 'http://localhost:8000/api'
@@ -42,6 +53,27 @@ export default function Articles() {
   const [sortOrder, setSortOrder] = useState('desc')
   const [sources, setSources] = useState([])
 
+  // Fetch dialog state
+  const [fetchDialogOpen, setFetchDialogOpen] = useState(false)
+  const [fetchSource, setFetchSource] = useState(null) // 'arxiv' or 'semanticscholar'
+  const [fetching, setFetching] = useState(false)
+  const [fetchResult, setFetchResult] = useState(null)
+  const [fetchError, setFetchError] = useState(null)
+
+  // arXiv fetch options
+  const [arxivCategories, setArxivCategories] = useState([])
+  const [selectedCategories, setSelectedCategories] = useState([])
+  const [arxivQuery, setArxivQuery] = useState('')
+  const [arxivAuthor, setArxivAuthor] = useState('')
+  const [arxivTitle, setArxivTitle] = useState('')
+  const [arxivMaxResults, setArxivMaxResults] = useState(100)
+
+  // Semantic Scholar fetch options
+  const [ssQuery, setSsQuery] = useState('')
+  const [ssLimit, setSsLimit] = useState(50)
+  const [ssYear, setSsYear] = useState('')
+  const [ssMinCitations, setSsMinCitations] = useState('')
+
   // Fetch sources for filter dropdown
   useEffect(() => {
     const fetchSources = async () => {
@@ -54,6 +86,22 @@ export default function Articles() {
       }
     }
     fetchSources()
+  }, [])
+
+  // Fetch arXiv categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/fetch/arxiv/categories`)
+        const data = await response.json()
+        setArxivCategories(data)
+        // Default select all categories
+        setSelectedCategories(data.map(c => c.code))
+      } catch (error) {
+        console.error('Error fetching arXiv categories:', error)
+      }
+    }
+    fetchCategories()
   }, [])
 
   // Fetch articles when filters or page changes
@@ -115,6 +163,104 @@ export default function Articles() {
     }
   }
 
+  const openFetchDialog = (source) => {
+    setFetchSource(source)
+    setFetchResult(null)
+    setFetchError(null)
+    setFetchDialogOpen(true)
+  }
+
+  const closeFetchDialog = () => {
+    setFetchDialogOpen(false)
+    setFetchSource(null)
+    setFetchResult(null)
+    setFetchError(null)
+    // Reset arXiv fields
+    setArxivQuery('')
+    setArxivAuthor('')
+    setArxivTitle('')
+    // Reset Semantic Scholar fields
+    setSsQuery('')
+    setSsYear('')
+    setSsMinCitations('')
+  }
+
+  const handleFetchArxiv = async () => {
+    setFetching(true)
+    setFetchError(null)
+    setFetchResult(null)
+
+    try {
+      const body = {
+        max_results: arxivMaxResults,
+      }
+      if (arxivQuery.trim()) body.query = arxivQuery.trim()
+      if (selectedCategories.length > 0) body.categories = selectedCategories
+      if (arxivAuthor.trim()) body.author = arxivAuthor.trim()
+      if (arxivTitle.trim()) body.title = arxivTitle.trim()
+
+      const response = await fetch(`${API_BASE}/fetch/arxiv`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to fetch from arXiv')
+      }
+
+      setFetchResult(data)
+      // Refresh articles list and sources
+      fetchArticles()
+      const sourcesRes = await fetch(`${API_BASE}/articles/sources`)
+      setSources(await sourcesRes.json())
+    } catch (error) {
+      setFetchError(error.message)
+    }
+    setFetching(false)
+  }
+
+  const handleFetchSemanticScholar = async () => {
+    if (!ssQuery.trim()) {
+      setFetchError('Please enter a search query')
+      return
+    }
+
+    setFetching(true)
+    setFetchError(null)
+    setFetchResult(null)
+
+    try {
+      const body = {
+        query: ssQuery.trim(),
+        limit: ssLimit,
+      }
+      if (ssYear.trim()) body.year = ssYear.trim()
+      if (ssMinCitations) body.min_citations = parseInt(ssMinCitations)
+
+      const response = await fetch(`${API_BASE}/fetch/semanticscholar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to fetch from Semantic Scholar')
+      }
+
+      setFetchResult(data)
+      // Refresh articles list and sources
+      fetchArticles()
+      const sourcesRes = await fetch(`${API_BASE}/articles/sources`)
+      setSources(await sourcesRes.json())
+    } catch (error) {
+      setFetchError(error.message)
+    }
+    setFetching(false)
+  }
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" py={8}>
@@ -131,9 +277,27 @@ export default function Articles() {
         <Typography variant="h4" fontWeight="bold">
           Articles
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {total} total
-        </Typography>
+        <Box display="flex" gap={1} alignItems="center">
+          <Typography variant="body2" color="text.secondary" mr={2}>
+            {total} total
+          </Typography>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<Science />}
+            onClick={() => openFetchDialog('arxiv')}
+          >
+            Fetch arXiv
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<School />}
+            onClick={() => openFetchDialog('semanticscholar')}
+          >
+            Fetch Semantic Scholar
+          </Button>
+        </Box>
       </Box>
 
       {/* Filters and Sort Controls */}
@@ -287,6 +451,136 @@ export default function Articles() {
           />
         </Box>
       )}
+
+      {/* Fetch Dialog */}
+      <Dialog open={fetchDialogOpen} onClose={closeFetchDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {fetchSource === 'arxiv' ? 'Fetch from arXiv' : 'Fetch from Semantic Scholar'}
+        </DialogTitle>
+        <DialogContent>
+          {fetchError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {fetchError}
+            </Alert>
+          )}
+          {fetchResult && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {fetchResult.message}
+            </Alert>
+          )}
+
+          {fetchSource === 'arxiv' && (
+            <Stack spacing={2}>
+              <Typography variant="body2" color="text.secondary">
+                Search and fetch papers from arXiv by keyword, author, or category.
+              </Typography>
+              <TextField
+                label="Search Query"
+                value={arxivQuery}
+                onChange={(e) => setArxivQuery(e.target.value)}
+                placeholder="e.g., transformer attention mechanism"
+                fullWidth
+                helperText="Optional: keywords to search in all fields"
+              />
+              <TextField
+                label="Author"
+                value={arxivAuthor}
+                onChange={(e) => setArxivAuthor(e.target.value)}
+                placeholder="e.g., Vaswani"
+                fullWidth
+                helperText="Optional: filter by author name"
+              />
+              <TextField
+                label="Title"
+                value={arxivTitle}
+                onChange={(e) => setArxivTitle(e.target.value)}
+                placeholder="e.g., attention is all you need"
+                fullWidth
+                helperText="Optional: keywords in title"
+              />
+              <FormControl fullWidth>
+                <InputLabel>Categories</InputLabel>
+                <Select
+                  multiple
+                  value={selectedCategories}
+                  onChange={(e) => setSelectedCategories(e.target.value)}
+                  label="Categories"
+                  renderValue={(selected) => selected.join(', ')}
+                >
+                  {arxivCategories.map((cat) => (
+                    <MenuItem key={cat.code} value={cat.code}>
+                      <Checkbox checked={selectedCategories.includes(cat.code)} />
+                      <ListItemText primary={cat.name} secondary={cat.code} />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <TextField
+                label="Max Results"
+                type="number"
+                value={arxivMaxResults}
+                onChange={(e) => setArxivMaxResults(parseInt(e.target.value) || 100)}
+                inputProps={{ min: 1, max: 500 }}
+                fullWidth
+              />
+            </Stack>
+          )}
+
+          {fetchSource === 'semanticscholar' && (
+            <Stack spacing={2}>
+              <Typography variant="body2" color="text.secondary">
+                Search and fetch papers from Semantic Scholar by keyword.
+              </Typography>
+              <TextField
+                label="Search Query"
+                value={ssQuery}
+                onChange={(e) => setSsQuery(e.target.value)}
+                placeholder="e.g., transformer attention mechanism"
+                fullWidth
+                required
+              />
+              <TextField
+                label="Max Results"
+                type="number"
+                value={ssLimit}
+                onChange={(e) => setSsLimit(parseInt(e.target.value) || 50)}
+                inputProps={{ min: 1, max: 100 }}
+                fullWidth
+              />
+              <TextField
+                label="Year Filter"
+                value={ssYear}
+                onChange={(e) => setSsYear(e.target.value)}
+                placeholder="e.g., 2024 or 2020-2024"
+                fullWidth
+                helperText="Optional: single year or range"
+              />
+              <TextField
+                label="Minimum Citations"
+                type="number"
+                value={ssMinCitations}
+                onChange={(e) => setSsMinCitations(e.target.value)}
+                inputProps={{ min: 0 }}
+                fullWidth
+                helperText="Optional: filter by citation count"
+              />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeFetchDialog}>
+            Close
+          </Button>
+          <Button
+            variant="contained"
+            onClick={fetchSource === 'arxiv' ? handleFetchArxiv : handleFetchSemanticScholar}
+            disabled={fetching || (fetchSource === 'semanticscholar' && !ssQuery.trim())}
+            startIcon={fetching ? <CircularProgress size={16} /> : <Download />}
+          >
+            {fetching ? 'Fetching...' : 'Fetch Papers'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
