@@ -7,7 +7,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
-from mindscout.database import init_db, get_session, Article
+from mindscout.database import init_db, get_session, Article, Notification, RSSFeed, UserProfile
 from mindscout.fetchers.arxiv import fetch_arxiv
 from mindscout.config import DEFAULT_CATEGORIES
 
@@ -473,30 +473,60 @@ def cmd_processing_stats(args):
 
 
 def cmd_clear(args):
-    """Clear all articles from the database."""
+    """Clear all data from the database and vector store."""
+    from mindscout.vectorstore import VectorStore
+
     session = get_session()
 
     try:
-        # Get count before deletion
-        count = session.query(Article).count()
+        # Get counts before deletion
+        article_count = session.query(Article).count()
+        notification_count = session.query(Notification).count()
+        feed_count = session.query(RSSFeed).count()
+        profile_count = session.query(UserProfile).count()
 
-        if count == 0:
+        total_count = article_count + notification_count + feed_count + profile_count
+
+        if total_count == 0:
             console.print("[yellow]Database is already empty[/yellow]")
-            return
+        else:
+            # Confirm deletion unless --force flag is used
+            if not args.force:
+                console.print(f"[bold yellow]Warning:[/bold yellow] This will delete:")
+                console.print(f"  - {article_count} articles")
+                console.print(f"  - {notification_count} notifications")
+                console.print(f"  - {feed_count} RSS feeds")
+                console.print(f"  - {profile_count} user profile(s)")
+                response = input("Are you sure? Type 'yes' to confirm: ")
+                if response.lower() != 'yes':
+                    console.print("[yellow]Operation cancelled[/yellow]")
+                    return
 
-        # Confirm deletion unless --force flag is used
-        if not args.force:
-            console.print(f"[bold yellow]Warning:[/bold yellow] This will delete {count} articles from the database.")
-            response = input("Are you sure? Type 'yes' to confirm: ")
-            if response.lower() != 'yes':
-                console.print("[yellow]Operation cancelled[/yellow]")
-                return
+            # Delete from all tables (order matters for foreign keys)
+            session.query(Notification).delete()
+            session.query(Article).delete()
+            session.query(RSSFeed).delete()
+            session.query(UserProfile).delete()
+            session.commit()
 
-        # Delete all articles
-        session.query(Article).delete()
-        session.commit()
+            console.print(f"[bold green]✓[/bold green] Cleared database ({total_count} records)")
 
-        console.print(f"[bold green]✓[/bold green] Deleted {count} articles from the database")
+        # Clear ChromaDB vector store
+        try:
+            vs = VectorStore()
+            chroma_count = vs.collection.count()
+            if chroma_count > 0:
+                # Delete and recreate collection
+                vs.client.delete_collection("articles")
+                vs.collection = vs.client.create_collection(
+                    name="articles",
+                    metadata={"hnsw:space": "cosine"}
+                )
+                console.print(f"[bold green]✓[/bold green] Cleared vector store ({chroma_count} embeddings)")
+            else:
+                console.print("[yellow]Vector store is already empty[/yellow]")
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not clear vector store: {e}[/yellow]")
 
     except Exception as e:
         session.rollback()
@@ -1223,7 +1253,7 @@ def main():
     parser_pstats.set_defaults(func=cmd_processing_stats)
 
     # clear command
-    parser_clear = subparsers.add_parser('clear', help='Clear all articles from database')
+    parser_clear = subparsers.add_parser('clear', help='Clear all data (database + vector store)')
     parser_clear.add_argument('-f', '--force', action='store_true', help='Skip confirmation prompt')
     parser_clear.set_defaults(func=cmd_clear)
 
