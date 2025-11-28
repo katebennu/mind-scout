@@ -101,12 +101,23 @@ def list_articles(
         # Count total before pagination
         total = query.count()
 
-        # Apply sorting
-        sort_column = getattr(Article, sort_by)
+        # Apply sorting - primary sort by fetched_date (truncated to minute), secondary by published_date
+        # Truncating to minute groups articles fetched in the same batch together
+        from sqlalchemy import func
+        fetched_minute = func.strftime('%Y-%m-%d %H:%M', Article.fetched_date)
+
         if sort_order == "desc":
-            query = query.order_by(sort_column.desc())
+            query = query.order_by(
+                fetched_minute.desc(),
+                Article.published_date.desc(),
+                Article.id.desc()
+            )
         else:
-            query = query.order_by(sort_column.asc())
+            query = query.order_by(
+                fetched_minute.asc(),
+                Article.published_date.asc(),
+                Article.id.asc()
+            )
 
         # Apply pagination
         offset = (page - 1) * page_size

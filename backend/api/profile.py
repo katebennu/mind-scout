@@ -45,7 +45,8 @@ def get_profile():
     try:
         profile = manager.get_or_create_profile()
         interests = manager.get_interests()
-        sources = manager.get_preferred_sources()
+        # Parse preferred_sources from comma-separated string
+        sources = [s.strip() for s in (profile.preferred_sources or "").split(",") if s.strip()]
 
         return ProfileResponse(
             interests=interests,
@@ -76,12 +77,13 @@ def update_profile(request: UpdateProfileRequest):
             manager.set_preferred_sources(request.preferred_sources)
 
         if request.daily_reading_goal is not None:
-            manager.set_daily_reading_goal(request.daily_reading_goal)
+            manager.set_daily_goal(request.daily_reading_goal)
 
         # Return updated profile
         profile = manager.get_or_create_profile()
         interests = manager.get_interests()
-        sources = manager.get_preferred_sources()
+        # Parse preferred_sources from comma-separated string
+        sources = [s.strip() for s in (profile.preferred_sources or "").split(",") if s.strip()]
 
         return ProfileResponse(
             interests=interests,

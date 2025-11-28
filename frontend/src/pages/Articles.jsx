@@ -39,7 +39,7 @@ export default function Articles() {
   // Filter and sort state
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [sourceName, setSourceName] = useState('')
-  const [sortOption, setSortOption] = useState('fetched_date_desc')
+  const [sortOrder, setSortOrder] = useState('desc')
   const [sources, setSources] = useState([])
 
   // Fetch sources for filter dropdown
@@ -59,19 +59,14 @@ export default function Articles() {
   // Fetch articles when filters or page changes
   useEffect(() => {
     fetchArticles()
-  }, [page, unreadOnly, sourceName, sortOption])
+  }, [page, unreadOnly, sourceName, sortOrder])
 
   const fetchArticles = async () => {
     setLoading(true)
     try {
-      const [sortBy, sortOrder] = sortOption.split('_').length === 3
-        ? [sortOption.split('_').slice(0, 2).join('_'), sortOption.split('_')[2]]
-        : [sortOption.split('_')[0], sortOption.split('_')[1]]
-
       const params = new URLSearchParams({
         page: page.toString(),
         page_size: pageSize.toString(),
-        sort_by: sortBy,
         sort_order: sortOrder,
       })
 
@@ -176,17 +171,15 @@ export default function Articles() {
           </Select>
         </FormControl>
 
-        <FormControl size="small" sx={{ minWidth: 180 }}>
-          <InputLabel>Sort by</InputLabel>
+        <FormControl size="small" sx={{ minWidth: 150 }}>
+          <InputLabel>Order</InputLabel>
           <Select
-            value={sortOption}
-            label="Sort by"
-            onChange={(e) => handleFilterChange(setSortOption)(e.target.value)}
+            value={sortOrder}
+            label="Order"
+            onChange={(e) => handleFilterChange(setSortOrder)(e.target.value)}
           >
-            <MenuItem value="fetched_date_desc">Recently Fetched</MenuItem>
-            <MenuItem value="published_date_desc">Recently Published</MenuItem>
-            <MenuItem value="published_date_asc">Oldest First</MenuItem>
-            <MenuItem value="rating_desc">Highest Rated</MenuItem>
+            <MenuItem value="desc">Newest First</MenuItem>
+            <MenuItem value="asc">Oldest First</MenuItem>
           </Select>
         </FormControl>
       </Box>

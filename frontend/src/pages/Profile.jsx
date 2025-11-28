@@ -21,6 +21,7 @@ import {
   Edit,
   Save,
   Cancel,
+  Add,
 } from '@mui/icons-material'
 
 const API_BASE = 'http://localhost:8000/api'
@@ -36,6 +37,8 @@ export default function Profile() {
     preferred_sources: [],
     daily_reading_goal: 5
   })
+  const [newInterest, setNewInterest] = useState('')
+  const [newSource, setNewSource] = useState('')
 
   useEffect(() => {
     fetchProfile()
@@ -83,17 +86,39 @@ export default function Profile() {
     }
   }
 
-  const handleInterestsChange = (value) => {
+  const handleAddInterest = () => {
+    const trimmed = newInterest.trim()
+    if (trimmed && !formData.interests.includes(trimmed)) {
+      setFormData({
+        ...formData,
+        interests: [...formData.interests, trimmed]
+      })
+      setNewInterest('')
+    }
+  }
+
+  const handleRemoveInterest = (interest) => {
     setFormData({
       ...formData,
-      interests: value.split(',').map(s => s.trim()).filter(Boolean)
+      interests: formData.interests.filter(i => i !== interest)
     })
   }
 
-  const handleSourcesChange = (value) => {
+  const handleAddSource = () => {
+    const trimmed = newSource.trim()
+    if (trimmed && !formData.preferred_sources.includes(trimmed)) {
+      setFormData({
+        ...formData,
+        preferred_sources: [...formData.preferred_sources, trimmed]
+      })
+      setNewSource('')
+    }
+  }
+
+  const handleRemoveSource = (source) => {
     setFormData({
       ...formData,
-      preferred_sources: value.split(',').map(s => s.trim()).filter(Boolean)
+      preferred_sources: formData.preferred_sources.filter(s => s !== source)
     })
   }
 
@@ -198,13 +223,39 @@ export default function Profile() {
                 </Stack>
               ) : (
                 <Stack spacing={3}>
-                  <TextField
-                    label="Interests (comma-separated)"
-                    value={formData.interests.join(', ')}
-                    onChange={(e) => handleInterestsChange(e.target.value)}
-                    placeholder="e.g., transformers, RL, computer vision"
-                    fullWidth
-                  />
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Interests
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} mb={1}>
+                      {formData.interests.map((interest, idx) => (
+                        <Chip
+                          key={idx}
+                          label={interest}
+                          size="small"
+                          onDelete={() => handleRemoveInterest(interest)}
+                        />
+                      ))}
+                    </Stack>
+                    <Box display="flex" gap={1}>
+                      <TextField
+                        size="small"
+                        value={newInterest}
+                        onChange={(e) => setNewInterest(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddInterest())}
+                        placeholder="Add interest..."
+                        fullWidth
+                      />
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleAddInterest}
+                        disabled={!newInterest.trim()}
+                      >
+                        <Add />
+                      </Button>
+                    </Box>
+                  </Box>
 
                   <FormControl fullWidth>
                     <InputLabel>Skill Level</InputLabel>
@@ -219,13 +270,39 @@ export default function Profile() {
                     </Select>
                   </FormControl>
 
-                  <TextField
-                    label="Preferred Sources (comma-separated)"
-                    value={formData.preferred_sources.join(', ')}
-                    onChange={(e) => handleSourcesChange(e.target.value)}
-                    placeholder="e.g., arxiv, semanticscholar"
-                    fullWidth
-                  />
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Preferred Sources
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} mb={1}>
+                      {formData.preferred_sources.map((source, idx) => (
+                        <Chip
+                          key={idx}
+                          label={source}
+                          size="small"
+                          onDelete={() => handleRemoveSource(source)}
+                        />
+                      ))}
+                    </Stack>
+                    <Box display="flex" gap={1}>
+                      <TextField
+                        size="small"
+                        value={newSource}
+                        onChange={(e) => setNewSource(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSource())}
+                        placeholder="Add source (e.g., arxiv, rss)..."
+                        fullWidth
+                      />
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleAddSource}
+                        disabled={!newSource.trim()}
+                      >
+                        <Add />
+                      </Button>
+                    </Box>
+                  </Box>
 
                   <TextField
                     label="Daily Reading Goal"

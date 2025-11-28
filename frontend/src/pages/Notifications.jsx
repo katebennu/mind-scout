@@ -20,6 +20,7 @@ import {
   RssFeed,
   DoneAll,
   DeleteSweep,
+  Star,
 } from '@mui/icons-material'
 
 const API_BASE = 'http://localhost:8000/api'
@@ -171,12 +172,16 @@ export default function Notifications() {
               sx={{
                 bgcolor: notification.is_read ? 'grey.50' : 'background.paper',
                 borderLeft: notification.is_read ? 'none' : '4px solid',
-                borderLeftColor: 'primary.main',
+                borderLeftColor: notification.type === 'interest_match' ? 'warning.main' : 'primary.main',
               }}
             >
               <CardContent sx={{ py: 2 }}>
                 <Box display="flex" alignItems="flex-start" gap={2}>
-                  <RssFeed color={notification.is_read ? 'disabled' : 'primary'} />
+                  {notification.type === 'interest_match' ? (
+                    <Star color={notification.is_read ? 'disabled' : 'warning'} />
+                  ) : (
+                    <RssFeed color={notification.is_read ? 'disabled' : 'primary'} />
+                  )}
                   <Box flex={1}>
                     <Typography
                       variant="subtitle1"
@@ -190,7 +195,15 @@ export default function Notifications() {
                     >
                       {notification.article.title}
                     </Typography>
-                    <Stack direction="row" spacing={1} alignItems="center" mt={1}>
+                    <Stack direction="row" spacing={1} alignItems="center" mt={1} flexWrap="wrap">
+                      {notification.type === 'interest_match' && (
+                        <Chip
+                          label="Matches your interests"
+                          size="small"
+                          color="warning"
+                          variant="filled"
+                        />
+                      )}
                       <Chip
                         label={notification.article.source}
                         size="small"
