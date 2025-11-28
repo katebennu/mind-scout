@@ -139,63 +139,72 @@ class RSSFetcher(BaseFetcher):
     def fetch_feed(self, feed: RSSFeed) -> Dict:
         """Fetch new articles from a subscribed feed.
 
-        Notifications are NOT created here - they are created by the content
-        processor when articles match user interests.
+        Note: This method opens its own session. For batch operations,
+        use fetch_feed_by_id() instead.
 
         Args:
-            feed: RSSFeed database object
+            feed: RSSFeed database object (only feed.id is used)
+
+        Returns:
+            Dictionary with counts: {"new_count": int}
+        """
+        with get_db_session() as session:
+            db_feed = session.query(RSSFeed).filter_by(id=feed.id).first()
+            if not db_feed:
+                raise ValueError(f"Feed with id {feed.id} not found")
+            return self._fetch_feed_impl(db_feed, session)
+
+    def _fetch_feed_impl(self, db_feed: RSSFeed, session) -> Dict:
+        """Internal implementation for fetching a feed.
+
+        Args:
+            db_feed: RSSFeed object bound to the given session
+            session: Active database session
 
         Returns:
             Dictionary with counts: {"new_count": int}
         """
         new_count = 0
 
-        with get_db_session() as session:
-            # Get the feed object in this session
-            db_feed = session.query(RSSFeed).filter_by(id=feed.id).first()
-            if not db_feed:
-                logger.error(f"Feed with id {feed.id} not found")
-                raise ValueError(f"Feed with id {feed.id} not found")
+        logger.info(f"Fetching RSS feed: {db_feed.title or db_feed.url}")
 
-            logger.info(f"Fetching RSS feed: {db_feed.title or db_feed.url}")
+        # Parse the feed
+        parsed = feedparser.parse(db_feed.url)
 
-            # Parse the feed
-            parsed = feedparser.parse(feed.url)
+        # Update feed metadata
+        db_feed.last_checked = datetime.utcnow()
+        if hasattr(parsed, "etag"):
+            db_feed.last_etag = parsed.etag
+        if hasattr(parsed, "modified"):
+            db_feed.last_modified = parsed.modified
 
-            # Update feed metadata
-            db_feed.last_checked = datetime.utcnow()
-            if hasattr(parsed, "etag"):
-                db_feed.last_etag = parsed.etag
-            if hasattr(parsed, "modified"):
-                db_feed.last_modified = parsed.modified
+        # Update feed title if we got one
+        if parsed.feed.get("title") and not db_feed.title:
+            db_feed.title = parsed.feed.title
 
-            # Update feed title if we got one
-            if parsed.feed.get("title") and not db_feed.title:
-                db_feed.title = parsed.feed.title
+        # Use feed title as source_name
+        source_name = db_feed.title or parsed.feed.get("title") or "RSS Feed"
 
-            # Use feed title as source_name
-            source_name = db_feed.title or parsed.feed.get("title") or "RSS Feed"
+        for entry in parsed.entries:
+            article_data = self._parse_entry(entry, db_feed.url)
+            if not article_data:
+                continue
 
-            for entry in parsed.entries:
-                article_data = self._parse_entry(entry, feed.url)
-                if not article_data:
-                    continue
+            # Add source_name from feed
+            article_data["source_name"] = source_name
 
-                # Add source_name from feed
-                article_data["source_name"] = source_name
+            # Check if article already exists
+            existing = session.query(Article).filter_by(
+                source_id=article_data["source_id"]
+            ).first()
 
-                # Check if article already exists
-                existing = session.query(Article).filter_by(
-                    source_id=article_data["source_id"]
-                ).first()
+            if existing:
+                continue
 
-                if existing:
-                    continue
-
-                # Create new article
-                article = Article(**article_data)
-                session.add(article)
-                new_count += 1
+            # Create new article
+            article = Article(**article_data)
+            session.add(article)
+            new_count += 1
 
         logger.info(f"Fetched {new_count} new articles from {source_name}")
         return {
@@ -211,16 +220,20 @@ class RSSFetcher(BaseFetcher):
         total_new = 0
         feeds_checked = 0
 
+        # Get feed IDs first, then fetch each in its own session
         with get_db_session() as session:
-            feeds = session.query(RSSFeed).filter(RSSFeed.is_active == True).all()
+            feed_ids = [
+                feed.id for feed in
+                session.query(RSSFeed).filter(RSSFeed.is_active == True).all()
+            ]
 
-        for feed in feeds:
+        for feed_id in feed_ids:
             try:
-                result = self.fetch_feed(feed)
+                result = self.fetch_feed_by_id(feed_id)
                 total_new += result["new_count"]
                 feeds_checked += 1
             except Exception as e:
-                logger.error(f"Error fetching feed {feed.url}: {e}")
+                logger.error(f"Error fetching feed id={feed_id}: {e}")
                 continue
 
         logger.info(f"Refreshed {feeds_checked} feeds, found {total_new} new articles")
@@ -228,3 +241,18 @@ class RSSFetcher(BaseFetcher):
             "feeds_checked": feeds_checked,
             "new_count": total_new,
         }
+
+    def fetch_feed_by_id(self, feed_id: int) -> Dict:
+        """Fetch new articles from a feed by its ID.
+
+        Args:
+            feed_id: Database ID of the RSSFeed
+
+        Returns:
+            Dictionary with counts: {"new_count": int}
+        """
+        with get_db_session() as session:
+            feed = session.query(RSSFeed).filter_by(id=feed_id).first()
+            if not feed:
+                raise ValueError(f"Feed with id {feed_id} not found")
+            return self._fetch_feed_impl(feed, session)

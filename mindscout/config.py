@@ -55,6 +55,20 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = Field(default="INFO", description="Logging level")
 
+    # Scheduler
+    scheduler_enabled: bool = Field(
+        default=True,
+        description="Enable background scheduler for daily fetch/process"
+    )
+    scheduler_hour: int = Field(
+        default=6,
+        description="Hour to run daily job (0-23)"
+    )
+    scheduler_minute: int = Field(
+        default=0,
+        description="Minute to run daily job (0-59)"
+    )
+
     @property
     def db_path(self) -> Path:
         """Get database path."""

@@ -18,6 +18,10 @@ A prioritized list of features, improvements, and ideas for Mind Scout.
   - Trigger as scheduled background task (cron/scheduler)
   - Progress tracking and status reporting
   - Configurable schedule (hourly, daily, etc.)
+- [ ] `[P0]` Batch processing for cost reduction (50-90% savings)
+  - Anthropic Batch API (50% cheaper, async results)
+  - Multi-article prompts (process 5-10 articles per request)
+  - Tiered processing (Haiku for all, Sonnet only for interest matches)
 
 ### Content Sources
 - [ ] `[P1]` Papers with Code integration (GitHub links, implementation status)

@@ -192,3 +192,39 @@ def process_unprocessed(request: Request):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/run-daily-job", response_model=FetchResponse)
+@limiter.limit(f"{settings.rate_limit_process}/minute")
+async def run_daily_job(request: Request):
+    """Manually trigger the daily fetch & process job.
+
+    This runs the same job that the scheduler runs daily:
+    - Fetches RSS feeds
+    - Fetches arXiv papers based on user interests
+    - Fetches Semantic Scholar papers based on user interests
+    - Processes up to 50 new articles with LLM
+    """
+    from backend.scheduler.jobs import fetch_and_process_job
+
+    try:
+        results = await fetch_and_process_job()
+        total = (
+            results["rss"]["articles"]
+            + results["arxiv"]["articles"]
+            + results["semanticscholar"]["articles"]
+        )
+
+        return FetchResponse(
+            success=True,
+            new_articles=total,
+            message=(
+                f"Fetched {total} articles "
+                f"(RSS: {results['rss']['articles']}, "
+                f"arXiv: {results['arxiv']['articles']}, "
+                f"S2: {results['semanticscholar']['articles']}), "
+                f"processed {results['processed']} ({results['failed']} failed)"
+            ),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

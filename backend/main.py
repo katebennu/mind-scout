@@ -1,5 +1,8 @@
 """FastAPI backend for Mind Scout web interface."""
 
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -8,17 +11,38 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from backend.api import articles, recommendations, profile, search, subscriptions, notifications, fetchers
+from backend.scheduler import start_scheduler, shutdown_scheduler
 from mindscout.config import get_settings
 
 settings = get_settings()
 
+# Configure logging
+logging.basicConfig(
+    level=getattr(logging, settings.log_level.upper()),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan - startup and shutdown events."""
+    # Startup
+    start_scheduler()
+    yield
+    # Shutdown
+    shutdown_scheduler()
+
 
 app = FastAPI(
     title="Mind Scout API",
     description="AI-powered research paper recommendation system",
-    version="0.6.0"
+    version="0.6.0",
+    lifespan=lifespan,
 )
 
 # Add rate limiter to app state
