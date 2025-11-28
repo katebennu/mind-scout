@@ -364,7 +364,7 @@ Tools (9 total):
 Table: articles
   - id: Integer (PK)
   - source_id: String (unique)
-  - source: String (arxiv, semanticscholar)
+  - source: String (arxiv, semanticscholar, rss)
   - title: String
   - authors: Text
   - abstract: Text
@@ -376,6 +376,7 @@ Table: articles
   - is_read: Boolean
   - rating: Integer (1-5)
   - embedding: Text (JSON)
+  - source_name: String
 
 Table: user_profile
   - id: Integer (PK)
@@ -383,6 +384,23 @@ Table: user_profile
   - skill_level: String
   - preferred_sources: Text
   - daily_reading_goal: Integer
+
+Table: rss_feeds
+  - id: Integer (PK)
+  - url: String (unique)
+  - title: String
+  - category: String
+  - is_active: Boolean
+  - check_interval: Integer
+  - last_checked: DateTime
+
+Table: notifications
+  - id: Integer (PK)
+  - article_id: Integer (FK)
+  - feed_id: Integer (FK)
+  - type: String (new_article, interest_match)
+  - is_read: Boolean
+  - created_date: DateTime
 ```
 
 ### Vector Store (ChromaDB)
@@ -405,15 +423,21 @@ Collection: "articles"
 
 ```python
 ArxivFetcher:
-  - RSS feed parsing
+  - arXiv API integration
   - Categories: cs.AI, cs.LG, cs.CV, cs.CL
   - Metadata extraction
+  - Rate limiting with exponential backoff
 
 SemanticScholarFetcher:
   - REST API integration
   - Citation data
   - Rate limiting with exponential backoff
   - Retry logic (3 attempts)
+
+RSSFetcher:
+  - Generic RSS/Atom feed parsing
+  - Subscription management
+  - Curated tech blog feeds
 ```
 
 ## Testing Architecture
@@ -472,7 +496,9 @@ mindscout/
 │   ├── recommender.py      # Recommendation engine
 │   ├── fetchers/
 │   │   ├── arxiv.py        # arXiv fetcher
+│   │   ├── arxiv_advanced.py  # arXiv API fetcher
 │   │   ├── semanticscholar.py  # S2 fetcher
+│   │   ├── rss.py          # RSS/Atom fetcher
 │   │   └── base.py         # Base fetcher class
 │   └── processors/
 │       ├── content.py      # Content processing
@@ -559,7 +585,7 @@ mindscout/
 ### Frontend
 - **Framework**: React 18
 - **Build Tool**: Vite
-- **Styling**: Tailwind CSS
+- **Styling**: Material UI (MUI)
 - **State**: React hooks
 - **HTTP**: Fetch API
 
@@ -577,9 +603,10 @@ mindscout/
 - **Model**: all-MiniLM-L6-v2
 
 ### External APIs
-- arXiv API (RSS feeds)
+- arXiv API
 - Semantic Scholar API
 - Anthropic Claude API
+- RSS/Atom feeds (various tech blogs)
 
 ### Development
 - **Testing**: pytest, pytest-cov

@@ -21,7 +21,7 @@ graph TB
         DB[(SQLite Database<br/>Articles & Profile)]
         VS[ChromaDB<br/>Vector Store<br/>Embeddings]
         REC[Recommendation<br/>Engine]
-        FETCH[Fetchers<br/>arXiv + S2]
+        FETCH[Fetchers<br/>arXiv + S2 + RSS]
     end
 
     subgraph "External Services"
@@ -214,6 +214,7 @@ erDiagram
         int rating
         text embedding
         boolean processed
+        string source_name
     }
 
     USER_PROFILE {
@@ -226,6 +227,29 @@ erDiagram
         datetime updated_date
     }
 
+    RSS_FEEDS {
+        int id PK
+        string url UK
+        string title
+        string category
+        boolean is_active
+        int check_interval
+        datetime last_checked
+        datetime created_date
+    }
+
+    NOTIFICATIONS {
+        int id PK
+        int article_id FK
+        int feed_id FK
+        string type
+        boolean is_read
+        datetime created_date
+        datetime read_date
+    }
+
+    ARTICLES ||--o{ NOTIFICATIONS : "generates"
+    RSS_FEEDS ||--o{ NOTIFICATIONS : "triggers"
     ARTICLES ||--o{ USER_PROFILE : "personalized for"
 ```
 
@@ -525,8 +549,8 @@ graph TD
     subgraph "Frontend Stack"
         F1[React 18]
         F2[Vite]
-        F3[Tailwind CSS]
-        F4[TypeScript]
+        F3[Material UI]
+        F4[JavaScript]
     end
 
     subgraph "Backend Stack"
