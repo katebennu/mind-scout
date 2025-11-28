@@ -64,10 +64,8 @@ class ContentProcessor:
             )
             article.topics = json.dumps(topics)
 
-            # Generate embedding (using title + abstract)
-            embed_text = f"{article.title}\n\n{article.abstract or ''}"
-            embedding = self.llm.generate_embedding(embed_text)
-            article.embedding = json.dumps(embedding)
+            # Note: Embeddings are generated and stored in ChromaDB via VectorStore.index_articles()
+            # which uses SentenceTransformer for real semantic embeddings
 
             # Mark as processed
             article.processed = True

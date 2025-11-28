@@ -47,8 +47,6 @@ class Article(Base):
     summary = Column(Text)
     # Extracted topics/keywords (JSON array stored as text)
     topics = Column(Text)
-    # Vector embedding (JSON array stored as text)
-    embedding = Column(Text)
     # Whether article has been processed
     processed = Column(Boolean, default=False)
     # When article was processed
