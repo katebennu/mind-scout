@@ -179,7 +179,11 @@ def delete_subscription(subscription_id: int):
 
 @router.post("/{subscription_id}/refresh")
 def refresh_subscription(subscription_id: int):
-    """Manually refresh a subscription and fetch new articles."""
+    """Manually refresh a subscription and fetch new articles.
+
+    Note: Notifications are created by the content processor when articles
+    match user interests, not during feed refresh.
+    """
     from mindscout.fetchers.rss import RSSFetcher
 
     session = get_session()
@@ -196,7 +200,6 @@ def refresh_subscription(subscription_id: int):
         return {
             "success": True,
             "new_articles": result["new_count"],
-            "notifications_created": result["notifications_count"]
         }
 
     finally:
@@ -205,7 +208,11 @@ def refresh_subscription(subscription_id: int):
 
 @router.post("/refresh-all")
 def refresh_all_subscriptions():
-    """Refresh all active subscriptions."""
+    """Refresh all active subscriptions.
+
+    Note: Notifications are created by the content processor when articles
+    match user interests, not during feed refresh.
+    """
     from mindscout.fetchers.rss import RSSFetcher
 
     session = get_session()
@@ -215,18 +222,15 @@ def refresh_all_subscriptions():
 
         fetcher = RSSFetcher()
         total_new = 0
-        total_notifications = 0
 
         for feed in feeds:
             result = fetcher.fetch_feed(feed)
             total_new += result["new_count"]
-            total_notifications += result["notifications_count"]
 
         return {
             "success": True,
             "feeds_checked": len(feeds),
             "new_articles": total_new,
-            "notifications_created": total_notifications
         }
 
     finally:

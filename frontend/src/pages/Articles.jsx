@@ -36,6 +36,7 @@ import {
   Download,
   Science,
   School,
+  Psychology,
 } from '@mui/icons-material'
 
 const API_BASE = 'http://localhost:8000/api'
@@ -73,6 +74,9 @@ export default function Articles() {
   const [ssLimit, setSsLimit] = useState(50)
   const [ssYear, setSsYear] = useState('')
   const [ssMinCitations, setSsMinCitations] = useState('')
+
+  // Process articles state
+  const [processing, setProcessing] = useState(false)
 
   // Fetch sources for filter dropdown
   useEffect(() => {
@@ -261,6 +265,23 @@ export default function Articles() {
     setFetching(false)
   }
 
+  const handleProcessArticles = async () => {
+    setProcessing(true)
+    try {
+      const response = await fetch(`${API_BASE}/fetch/process`, {
+        method: 'POST'
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to process articles')
+      }
+      alert(data.message)
+    } catch (error) {
+      alert(`Error: ${error.message}`)
+    }
+    setProcessing(false)
+  }
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" py={8}>
@@ -296,6 +317,16 @@ export default function Articles() {
             onClick={() => openFetchDialog('semanticscholar')}
           >
             Fetch Semantic Scholar
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            color="secondary"
+            startIcon={processing ? <CircularProgress size={16} /> : <Psychology />}
+            onClick={handleProcessArticles}
+            disabled={processing}
+          >
+            {processing ? 'Processing...' : 'Process Articles'}
           </Button>
         </Box>
       </Box>

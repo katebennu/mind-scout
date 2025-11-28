@@ -175,12 +175,12 @@ def process_unprocessed():
 
     try:
         processor = ContentProcessor()
-        result = processor.process_all(limit=50)
+        processed, failed = processor.process_batch(limit=50)
 
         return FetchResponse(
             success=True,
-            new_articles=result["processed"],
-            message=f"Processed {result['processed']} articles ({result['failed']} failed)"
+            new_articles=processed,
+            message=f"Processed {processed} articles ({failed} failed)"
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

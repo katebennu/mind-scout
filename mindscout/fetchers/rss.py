@@ -1,4 +1,4 @@
-"""Generic RSS feed fetcher with notification support."""
+"""Generic RSS feed fetcher."""
 
 import hashlib
 from datetime import datetime
@@ -7,11 +7,11 @@ import feedparser
 import requests
 
 from mindscout.fetchers.base import BaseFetcher
-from mindscout.database import Article, RSSFeed, Notification, get_session
+from mindscout.database import Article, RSSFeed, get_session
 
 
 class RSSFetcher(BaseFetcher):
-    """Generic RSS/Atom feed fetcher that creates notifications for new articles."""
+    """Generic RSS/Atom feed fetcher."""
 
     def __init__(self):
         super().__init__("rss")
@@ -134,17 +134,19 @@ class RSSFetcher(BaseFetcher):
         return hashlib.sha256(content.encode()).hexdigest()[:32]
 
     def fetch_feed(self, feed: RSSFeed) -> Dict:
-        """Fetch new articles from a subscribed feed and create notifications.
+        """Fetch new articles from a subscribed feed.
+
+        Notifications are NOT created here - they are created by the content
+        processor when articles match user interests.
 
         Args:
             feed: RSSFeed database object
 
         Returns:
-            Dictionary with counts: {"new_count": int, "notifications_count": int}
+            Dictionary with counts: {"new_count": int}
         """
         session = get_session()
         new_count = 0
-        notifications_count = 0
 
         try:
             # Get the feed object in this session
@@ -165,8 +167,6 @@ class RSSFetcher(BaseFetcher):
             # Update feed title if we got one
             if parsed.feed.get("title") and not db_feed.title:
                 db_feed.title = parsed.feed.title
-
-            new_article_ids = []
 
             # Use feed title as source_name
             source_name = db_feed.title or parsed.feed.get("title") or "RSS Feed"
@@ -190,20 +190,7 @@ class RSSFetcher(BaseFetcher):
                 # Create new article
                 article = Article(**article_data)
                 session.add(article)
-                session.flush()  # Get the article ID
-
-                new_article_ids.append(article.id)
                 new_count += 1
-
-            # Create notifications for new articles
-            for article_id in new_article_ids:
-                notification = Notification(
-                    article_id=article_id,
-                    feed_id=feed.id,
-                    type="new_article"
-                )
-                session.add(notification)
-                notifications_count += 1
 
             session.commit()
 
@@ -215,7 +202,6 @@ class RSSFetcher(BaseFetcher):
 
         return {
             "new_count": new_count,
-            "notifications_count": notifications_count
         }
 
     def refresh_all_feeds(self) -> Dict:
@@ -226,7 +212,6 @@ class RSSFetcher(BaseFetcher):
         """
         session = get_session()
         total_new = 0
-        total_notifications = 0
         feeds_checked = 0
 
         try:
@@ -236,7 +221,6 @@ class RSSFetcher(BaseFetcher):
                 try:
                     result = self.fetch_feed(feed)
                     total_new += result["new_count"]
-                    total_notifications += result["notifications_count"]
                     feeds_checked += 1
                 except Exception as e:
                     # Log error but continue with other feeds
@@ -249,5 +233,4 @@ class RSSFetcher(BaseFetcher):
         return {
             "feeds_checked": feeds_checked,
             "new_count": total_new,
-            "notifications_count": total_notifications
         }
