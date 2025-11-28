@@ -363,6 +363,160 @@ spec:
 
 ---
 
+## ChromaDB: Vector Store Overview
+
+Mind Scout uses two databases:
+- **PostgreSQL**: Structured data (articles, users, feeds) with exact queries
+- **ChromaDB**: Vector embeddings for semantic search and recommendations
+
+### How It Works
+
+```
+Article text → Embedding Model → Vector [0.02, -0.15, 0.89, ..., 0.04] (384 dims)
+```
+
+Similar articles have vectors that are "close" in this 384-dimensional space, enabling:
+- Semantic search ("find papers about attention mechanisms")
+- Recommendations (articles similar to what you've read)
+- Interest matching (compare article topics to user interests)
+
+### Deployment Options
+
+#### Option 1: Embedded (Current/Simplest)
+ChromaDB runs inside the Python process, persists to disk.
+
+```python
+client = chromadb.PersistentClient(path="./data/chroma")
+```
+
+**Pros:** No extra services, simple setup
+**Cons:** Can't share across multiple app instances
+
+#### Option 2: Chroma Server (Docker)
+Run ChromaDB as a separate service for multi-instance access.
+
+```yaml
+# docker-compose.yaml
+services:
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+```
+
+```python
+client = chromadb.HttpClient(host="chromadb", port=8000)
+```
+
+#### Option 3: Managed Vector DB (Scale Later)
+
+| Service | Pricing | Notes |
+|---------|---------|-------|
+| Pinecone | Free tier, then ~$70/mo | Fully managed |
+| Weaviate Cloud | Free tier available | Open source |
+| Qdrant Cloud | Free 1GB | Good performance |
+| pgvector | Use existing PostgreSQL | Single DB for everything |
+
+---
+
+## Alternative: Single VM Deployment
+
+A simpler alternative to full GKE for single-user MVP.
+
+### Architecture
+
+```
+┌─────────────────── Single VM (e2-small) ────────────────────┐
+│                                                              │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐  │
+│  │ Frontend │  │ Backend  │  │ ChromaDB │  │ PostgreSQL │  │
+│  │   :80    │  │  :8000   │  │  :8001   │  │   :5432    │  │
+│  └──────────┘  └──────────┘  └──────────┘  └────────────┘  │
+│                                                              │
+│  Volumes: /data/postgres, /data/chroma                       │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Docker Compose Configuration
+
+```yaml
+# docker-compose.yaml
+version: "3.8"
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://mindscout:password@postgres:5432/mindscout
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      - postgres
+      - chromadb
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=mindscout
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=mindscout
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  chromadb:
+    image: chromadb/chroma:latest
+    volumes:
+      - chroma_data:/chroma/chroma
+    ports:
+      - "8001:8000"
+
+volumes:
+  pg_data:
+  chroma_data:
+```
+
+### Cost Comparison
+
+| Approach | Monthly Cost | Complexity |
+|----------|--------------|------------|
+| Single VM + Docker Compose | ~$15-20 | Low |
+| Cloud Run | ~$5-15 | Medium |
+| Full GKE | ~$55-60 | High |
+
+### When to Use Each
+
+**Single VM (Docker Compose):**
+- Single user
+- Simple deployment
+- Predictable costs
+- Full control
+
+**GKE:**
+- Multiple users
+- Need auto-scaling
+- High availability required
+- Team deployment workflow
+
+---
+
 ## Key Risks & Mitigations
 
 | Risk | Mitigation |
