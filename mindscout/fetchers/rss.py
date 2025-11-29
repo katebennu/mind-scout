@@ -185,25 +185,35 @@ class RSSFetcher(BaseFetcher):
         # Use feed title as source_name
         source_name = db_feed.title or parsed.feed.get("title") or "RSS Feed"
 
+        # Collect all source_ids we want to add
+        articles_to_add = []
         for entry in parsed.entries:
             article_data = self._parse_entry(entry, db_feed.url)
             if not article_data:
                 continue
-
-            # Add source_name from feed
             article_data["source_name"] = source_name
+            articles_to_add.append(article_data)
 
-            # Check if article already exists
-            existing = session.query(Article).filter_by(
-                source_id=article_data["source_id"]
-            ).first()
+        if not articles_to_add:
+            logger.info(f"No new articles from {source_name}")
+            return {"new_count": 0}
 
-            if existing:
+        # Get existing source_ids in one query
+        source_ids = [a["source_id"] for a in articles_to_add]
+        existing_ids = set(
+            row[0] for row in session.query(Article.source_id).filter(
+                Article.source_id.in_(source_ids)
+            ).all()
+        )
+
+        # Only add articles that don't exist
+        for article_data in articles_to_add:
+            if article_data["source_id"] in existing_ids:
                 continue
 
-            # Create new article
             article = Article(**article_data)
             session.add(article)
+            existing_ids.add(article_data["source_id"])  # Prevent duplicates within same batch
             new_count += 1
 
         logger.info(f"Fetched {new_count} new articles from {source_name}")

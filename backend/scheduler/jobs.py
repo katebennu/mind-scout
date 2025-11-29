@@ -3,6 +3,8 @@
 import logging
 from datetime import datetime
 
+from mindscout.database import get_db_session, PendingBatch, Article
+
 logger = logging.getLogger(__name__)
 
 
@@ -100,17 +102,43 @@ async def fetch_and_process_job() -> dict:
         except Exception as e:
             logger.error(f"Semantic Scholar fetch failed: {e}")
 
-    # 4. Process new articles (limit 50)
+    # 4. Create async batch for processing (50% cheaper)
     try:
         from mindscout.processors.content import ContentProcessor
 
-        processor = ContentProcessor()
-        processed, failed = processor.process_batch(limit=50)
-        results["processed"] = processed
-        results["failed"] = failed
-        logger.info(f"Processed: {processed} articles ({failed} failed)")
+        # Check how many unprocessed articles we have
+        with get_db_session() as session:
+            unprocessed_count = session.query(Article).filter(
+                Article.processed == False  # noqa: E712
+            ).count()
+
+        if unprocessed_count > 0:
+            processor = ContentProcessor()
+            batch_id = processor.create_async_batch(limit=100)
+
+            # Store pending batch in database
+            with get_db_session() as session:
+                pending = PendingBatch(
+                    batch_id=batch_id,
+                    article_count=min(unprocessed_count, 100),
+                    status="pending",
+                )
+                session.add(pending)
+
+            results["batch_id"] = batch_id
+            results["batch_articles"] = min(unprocessed_count, 100)
+            logger.info(
+                f"Created async batch {batch_id} for {min(unprocessed_count, 100)} articles"
+            )
+        else:
+            logger.info("No unprocessed articles - skipping batch creation")
+            results["batch_id"] = None
+            results["batch_articles"] = 0
+
     except Exception as e:
-        logger.error(f"Processing failed: {e}")
+        logger.error(f"Batch creation failed: {e}")
+        results["batch_id"] = None
+        results["batch_articles"] = 0
 
     total_fetched = (
         results["rss"]["articles"]
@@ -118,7 +146,93 @@ async def fetch_and_process_job() -> dict:
         + results["semanticscholar"]["articles"]
     )
     logger.info(
-        f"Daily job complete: {total_fetched} fetched, {results['processed']} processed"
+        f"Daily job complete: {total_fetched} fetched, "
+        f"batch created for {results.get('batch_articles', 0)} articles"
+    )
+
+    return results
+
+
+async def check_pending_batches_job() -> dict:
+    """Check pending batches and apply results when complete.
+
+    This job runs periodically to check if any async batches have completed
+    and applies their results to the database.
+
+    Returns:
+        Dictionary with batch processing results
+    """
+    from mindscout.processors.content import ContentProcessor
+    from mindscout.processors.llm import LLMClient
+
+    logger.info("Checking pending batches...")
+
+    results = {
+        "checked": 0,
+        "completed": 0,
+        "still_pending": 0,
+        "failed": 0,
+        "articles_updated": 0,
+    }
+
+    try:
+        llm = LLMClient()
+        processor = ContentProcessor()
+    except Exception as e:
+        logger.error(f"Failed to initialize LLM client: {e}")
+        return results
+
+    # Get all pending batches
+    with get_db_session() as session:
+        pending_batches = session.query(PendingBatch).filter(
+            PendingBatch.status.in_(["pending", "processing"])
+        ).all()
+
+        for batch in pending_batches:
+            results["checked"] += 1
+
+            try:
+                status = llm.get_batch_status(batch.batch_id)
+                logger.info(
+                    f"Batch {batch.batch_id}: status={status['status']}, "
+                    f"succeeded={status['counts']['succeeded']}"
+                )
+
+                if status["status"] == "ended":
+                    # Batch complete - apply results
+                    updated, failed = processor.apply_batch_results(batch.batch_id)
+                    results["articles_updated"] += updated
+
+                    batch.status = "completed"
+                    batch.completed_date = datetime.utcnow()
+                    results["completed"] += 1
+
+                    logger.info(
+                        f"Batch {batch.batch_id} completed: "
+                        f"{updated} articles updated, {failed} failed"
+                    )
+
+                elif status["status"] in ["failed", "expired", "canceled"]:
+                    batch.status = "failed"
+                    batch.error_message = f"Batch {status['status']}"
+                    batch.completed_date = datetime.utcnow()
+                    results["failed"] += 1
+
+                    logger.warning(f"Batch {batch.batch_id} {status['status']}")
+
+                else:
+                    # Still processing
+                    batch.status = "processing"
+                    results["still_pending"] += 1
+
+            except Exception as e:
+                logger.error(f"Error checking batch {batch.batch_id}: {e}")
+                batch.error_message = str(e)
+                results["failed"] += 1
+
+    logger.info(
+        f"Batch check complete: {results['completed']} completed, "
+        f"{results['still_pending']} pending, {results['failed']} failed"
     )
 
     return results

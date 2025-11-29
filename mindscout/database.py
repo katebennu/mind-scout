@@ -126,6 +126,29 @@ class RSSFeed(Base):
         return f"<RSSFeed {self.title or self.url}>"
 
 
+class PendingBatch(Base):
+    """Tracks pending async LLM batches for processing."""
+
+    __tablename__ = "pending_batches"
+
+    id = Column(Integer, primary_key=True)
+    # Anthropic batch ID
+    batch_id = Column(String, unique=True, nullable=False, index=True)
+    # Number of articles in the batch
+    article_count = Column(Integer, default=0)
+    # Status: pending, processing, completed, failed
+    status = Column(String, default="pending")
+    # When batch was created
+    created_date = Column(DateTime, default=datetime.utcnow)
+    # When batch was completed/applied
+    completed_date = Column(DateTime)
+    # Error message if failed
+    error_message = Column(Text)
+
+    def __repr__(self):
+        return f"<PendingBatch {self.batch_id} status={self.status}>"
+
+
 class Notification(Base):
     """User notification for new articles from subscriptions."""
 

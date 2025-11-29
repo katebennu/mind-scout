@@ -177,7 +177,6 @@ class TestRSSFetcherFetchFeed:
             result = fetcher.fetch_feed(sample_feed)
 
         assert result["new_count"] == 2
-        assert result["notifications_count"] == 2
 
         # Verify articles in database
         session = get_session()
@@ -186,27 +185,33 @@ class TestRSSFetcherFetchFeed:
         assert articles[0].source_name == "Test Feed"
         session.close()
 
-    def test_fetch_feed_creates_notifications(self, fetcher, sample_feed, isolated_test_db):
-        """Test that fetching creates notifications."""
-        mock_parsed = MagicMock(spec=[])  # Empty spec prevents auto-creating attributes
+    def test_fetch_feed_handles_duplicates_in_same_feed(self, fetcher, sample_feed, isolated_test_db):
+        """Test that duplicate entries within the same feed are handled."""
+        mock_parsed = MagicMock(spec=[])
         mock_parsed.feed = {"title": "Test Feed"}
+        # Same entry_id appears twice in the feed
         mock_parsed.entries = [
             create_mock_feed_entry(
-                title="New Article",
-                link="https://example.com/new",
-                entry_id="new-id"
+                title="Article 1",
+                link="https://example.com/1",
+                entry_id="duplicate-id"
+            ),
+            create_mock_feed_entry(
+                title="Article 1 Copy",
+                link="https://example.com/1",
+                entry_id="duplicate-id"
             ),
         ]
 
         with patch("mindscout.fetchers.rss.feedparser.parse", return_value=mock_parsed):
-            fetcher.fetch_feed(sample_feed)
+            result = fetcher.fetch_feed(sample_feed)
 
-        # Verify notification in database
+        # Should only create one article
+        assert result["new_count"] == 1
+
         session = get_session()
-        notifications = session.query(Notification).all()
-        assert len(notifications) == 1
-        assert notifications[0].feed_id == sample_feed.id
-        assert notifications[0].is_read is False
+        articles = session.query(Article).all()
+        assert len(articles) == 1
         session.close()
 
     def test_fetch_feed_skips_duplicates(self, fetcher, sample_feed, isolated_test_db):
@@ -280,9 +285,8 @@ class TestRSSFetcherRefreshAllFeeds:
 
         with patch("mindscout.fetchers.rss.feedparser.parse", return_value=mock_parsed):
             # Need to patch at instance level since fetch_feed creates new sessions
-            with patch.object(fetcher, "fetch_feed", return_value={"new_count": 1, "notifications_count": 1}):
+            with patch.object(fetcher, "fetch_feed_by_id", return_value={"new_count": 1}):
                 result = fetcher.refresh_all_feeds()
 
         assert result["feeds_checked"] == 2  # Only active feeds
         assert result["new_count"] == 2
-        assert result["notifications_count"] == 2
