@@ -7,6 +7,9 @@ from unittest.mock import patch, MagicMock
 import pytest
 import importlib.util
 
+# Skip all tests if mcp module is not available
+pytest.importorskip("mcp", reason="MCP module not installed")
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 

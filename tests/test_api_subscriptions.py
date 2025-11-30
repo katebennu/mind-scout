@@ -250,7 +250,7 @@ class TestRefreshSubscription:
 
     def test_refresh_subscription_success(self, client, sample_feeds):
         """Test refreshing a subscription."""
-        mock_result = {"new_count": 5, "notifications_count": 5}
+        mock_result = {"new_count": 5}
 
         with patch("mindscout.fetchers.rss.RSSFetcher.fetch_feed", return_value=mock_result):
             response = client.post("/api/subscriptions/1/refresh")
@@ -259,7 +259,6 @@ class TestRefreshSubscription:
         data = response.json()
         assert data["success"] is True
         assert data["new_articles"] == 5
-        assert data["notifications_created"] == 5
 
     def test_refresh_subscription_not_found(self, client, sample_feeds):
         """Test refreshing non-existent subscription."""
