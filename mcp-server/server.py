@@ -213,7 +213,7 @@ def list_articles(
 
         # Apply filters
         if unread_only:
-            query = query.filter(not Article.is_read)
+            query = query.filter(Article.is_read.is_(False))
 
         if source:
             query = query.filter(Article.source == source)

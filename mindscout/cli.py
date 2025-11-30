@@ -1190,7 +1190,7 @@ def cmd_notifications(args):
             query = session.query(Notification).order_by(Notification.created_date.desc())
 
             if args.unread:
-                query = query.filter(not Notification.is_read)
+                query = query.filter(Notification.is_read.is_(False))
 
             notifications = query.limit(args.limit).all()
 
@@ -1201,7 +1201,9 @@ def cmd_notifications(args):
                     console.print("[yellow]No notifications yet.[/yellow]")
                 return
 
-            unread_count = session.query(Notification).filter(not Notification.is_read).count()
+            unread_count = (
+                session.query(Notification).filter(Notification.is_read.is_(False)).count()
+            )
             console.print(f"[bold cyan]Notifications[/bold cyan] ({unread_count} unread)\n")
 
             for notif in notifications:
@@ -1225,7 +1227,7 @@ def cmd_notifications(args):
                 console.print(f"  [dim]ID: {notif.id} | Article: {notif.article_id}[/dim]\n")
 
         elif args.notif_command == "count":
-            unread = session.query(Notification).filter(not Notification.is_read).count()
+            unread = session.query(Notification).filter(Notification.is_read.is_(False)).count()
             total = session.query(Notification).count()
             console.print(f"Notifications: {unread} unread / {total} total")
 
@@ -1233,7 +1235,7 @@ def cmd_notifications(args):
             if args.all:
                 count = (
                     session.query(Notification)
-                    .filter(not Notification.is_read)
+                    .filter(Notification.is_read.is_(False))
                     .update({Notification.is_read: True, Notification.read_date: datetime.utcnow()})
                 )
                 session.commit()

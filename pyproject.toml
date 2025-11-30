@@ -68,6 +68,7 @@ select = [
 ]
 ignore = [
     "E501",   # line too long (handled by black)
+    "E712",   # comparison to True/False (SQLAlchemy requires == for column comparisons)
     "B008",   # function call in default argument (required for FastAPI Depends)
     "B904",   # raise from in except (not needed for HTTPException re-raises)
 ]

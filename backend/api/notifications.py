@@ -55,7 +55,7 @@ def list_notifications(unread_only: bool = False, limit: int = 50, offset: int =
         query = session.query(Notification).order_by(Notification.created_date.desc())
 
         if unread_only:
-            query = query.filter(not Notification.is_read)
+            query = query.filter(Notification.is_read.is_(False))
 
         notifications = query.offset(offset).limit(limit).all()
 
@@ -103,7 +103,7 @@ def get_notification_count():
     session = get_session()
 
     try:
-        unread = session.query(Notification).filter(not Notification.is_read).count()
+        unread = session.query(Notification).filter(Notification.is_read.is_(False)).count()
         total = session.query(Notification).count()
 
         return NotificationCountResponse(unread=unread, total=total)
@@ -140,7 +140,7 @@ def mark_all_notifications_read():
     session = get_session()
 
     try:
-        session.query(Notification).filter(not Notification.is_read).update(
+        session.query(Notification).filter(Notification.is_read.is_(False)).update(
             {Notification.is_read: True, Notification.read_date: datetime.utcnow()}
         )
         session.commit()

@@ -95,7 +95,7 @@ async def list_articles(
 
     # Apply filters
     if unread_only:
-        stmt = stmt.where(not Article.is_read)
+        stmt = stmt.where(Article.is_read.is_(False))
 
     if source:
         stmt = stmt.where(Article.source == source)

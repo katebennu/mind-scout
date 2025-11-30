@@ -45,7 +45,7 @@ class RecommendationEngine:
 
         # Filter by read status
         if unread_only:
-            query = query.filter(not Article.is_read)
+            query = query.filter(Article.is_read.is_(False))
 
         # Get all candidates
         candidates = query.all()
