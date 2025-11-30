@@ -1067,6 +1067,98 @@ def cmd_subscribe(args):
         session.close()
 
 
+def cmd_evaluate(args):
+    """Run evaluations on processed articles using Phoenix Evals."""
+    from mindscout.database import get_db_session, Article
+    from mindscout.observability import init_phoenix
+
+    # Initialize Phoenix tracing so eval LLM calls are traced
+    init_phoenix()
+
+    console.print("[bold blue]Running topic extraction evaluations...[/bold blue]")
+
+    try:
+        from mindscout.evaluation import TopicEvaluator
+    except ImportError as e:
+        console.print(f"[bold red]Error:[/bold red] Phoenix evals not installed: {e}")
+        console.print("[yellow]Install with: pip install arize-phoenix-evals[/yellow]")
+        return
+
+    with get_db_session() as session:
+        from sqlalchemy.sql.expression import func
+
+        # Get random articles with topics and abstracts
+        query = session.query(Article).filter(
+            Article.topics.isnot(None),
+            Article.abstract.isnot(None),
+            Article.abstract != ""
+        ).order_by(func.random())
+
+        if args.limit:
+            query = query.limit(args.limit)
+
+        articles = query.all()
+
+        if not articles:
+            console.print("[yellow]No processed articles found with topics[/yellow]")
+            console.print("[dim]Process articles first with: mindscout process[/dim]")
+            return
+
+        console.print(f"[dim]Evaluating {len(articles)} articles...[/dim]\n")
+
+        try:
+            evaluator = TopicEvaluator()
+        except Exception as e:
+            console.print(f"[bold red]Error initializing evaluator:[/bold red] {e}")
+            return
+
+        # Collect results for summary
+        results = {"excellent": 0, "good": 0, "poor": 0}
+
+        for article in articles:
+            import json
+            try:
+                topics = json.loads(article.topics) if article.topics else []
+            except json.JSONDecodeError:
+                topics = article.topics.split(",") if article.topics else []
+
+            if not topics:
+                continue
+
+            try:
+                result = evaluator.evaluate(
+                    title=article.title,
+                    abstract=article.abstract,
+                    topics=topics
+                )
+
+                results[result.label] = results.get(result.label, 0) + 1
+
+                # Color code the result
+                if result.label == "excellent":
+                    label_str = f"[bold green]{result.label}[/bold green]"
+                elif result.label == "good":
+                    label_str = f"[yellow]{result.label}[/yellow]"
+                else:
+                    label_str = f"[red]{result.label}[/red]"
+
+                console.print(f"{label_str} ({result.score:.2f}) - {article.title[:60]}...")
+
+                if args.verbose and result.explanation:
+                    console.print(f"  [dim]{result.explanation}[/dim]")
+
+            except Exception as e:
+                console.print(f"[red]Error evaluating article {article.id}:[/red] {e}")
+
+        # Summary
+        total = sum(results.values())
+        if total > 0:
+            console.print(f"\n[bold cyan]Summary:[/bold cyan]")
+            console.print(f"  Excellent: [green]{results['excellent']}[/green] ({results['excellent']/total*100:.0f}%)")
+            console.print(f"  Good: [yellow]{results['good']}[/yellow] ({results['good']/total*100:.0f}%)")
+            console.print(f"  Poor: [red]{results['poor']}[/red] ({results['poor']/total*100:.0f}%)")
+
+
 def cmd_notifications(args):
     """Manage notifications."""
     from mindscout.database import Notification, RSSFeed
@@ -1348,6 +1440,12 @@ def main():
     sub_refresh.add_argument('feed_id', type=int, nargs='?', help='Specific subscription ID (optional)')
 
     parser_sub.set_defaults(func=cmd_subscribe)
+
+    # evaluate command (Phoenix Evals)
+    parser_eval = subparsers.add_parser('evaluate', help='Evaluate processed articles with Phoenix Evals')
+    parser_eval.add_argument('-n', '--limit', type=int, default=10, help='Number of articles to evaluate (default: 10)')
+    parser_eval.add_argument('-v', '--verbose', action='store_true', help='Show evaluation explanations')
+    parser_eval.set_defaults(func=cmd_evaluate)
 
     # notifications command
     parser_notif = subparsers.add_parser('notifications', help='Manage notifications')

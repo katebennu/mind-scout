@@ -28,6 +28,7 @@ graph TB
         ARXIV[arXiv API<br/>RSS Feeds]
         S2[Semantic Scholar<br/>Citation Data]
         ANTHROPIC[Anthropic API<br/>Claude LLM]
+        PHOENIX[Phoenix Cloud<br/>LLM Observability]
     end
 
     WEB -->|HTTP| API
@@ -49,6 +50,8 @@ graph TB
     FETCH --> DB
 
     API --> ANTHROPIC
+    API -.->|traces| PHOENIX
+    CLI -.->|traces| PHOENIX
 
     style WEB fill:#e1f5ff
     style CLI fill:#e1f5ff
@@ -62,6 +65,7 @@ graph TB
     style ARXIV fill:#fce4ec
     style S2 fill:#fce4ec
     style ANTHROPIC fill:#fce4ec
+    style PHOENIX fill:#f3e5f5
 ```
 
 ## Paper Fetching Flow
@@ -567,6 +571,12 @@ graph TD
         M4[all-MiniLM-L6-v2]
     end
 
+    subgraph "Observability"
+        O1[Arize Phoenix]
+        O2[OpenTelemetry]
+        O3[phoenix-evals]
+    end
+
     subgraph "Infrastructure"
         I1[Docker]
         I2[Google Cloud Run]
@@ -583,6 +593,7 @@ graph TD
     style F1 fill:#61dafb
     style B1 fill:#009688
     style M1 fill:#ff6f00
+    style O1 fill:#f3e5f5
     style I1 fill:#2496ed
     style D1 fill:#0a9396
 ```

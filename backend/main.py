@@ -31,6 +31,10 @@ limiter = Limiter(key_func=get_remote_address)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifespan - startup and shutdown events."""
+    # Initialize Phoenix tracing
+    from mindscout.observability import init_phoenix
+    init_phoenix()
+
     # Startup
     start_scheduler()
     yield

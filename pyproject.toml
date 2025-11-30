@@ -30,6 +30,10 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "slowapi>=0.1.9",
     "apscheduler>=3.10.0",
+    # Phoenix observability & evaluation
+    "arize-phoenix>=8.0.0",
+    "arize-phoenix-evals>=2.0.0",
+    "openinference-instrumentation-anthropic>=0.1.0",
 ]
 
 [project.optional-dependencies]

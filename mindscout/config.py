@@ -69,6 +69,24 @@ class Settings(BaseSettings):
         description="Minute to run daily job (0-59)"
     )
 
+    # Phoenix Observability
+    phoenix_enabled: bool = Field(
+        default=True,
+        description="Enable Phoenix tracing for LLM observability"
+    )
+    phoenix_api_key: Optional[str] = Field(
+        default=None,
+        description="Phoenix API key for cloud dashboard"
+    )
+    phoenix_collector_endpoint: str = Field(
+        default="https://app.phoenix.arize.com",
+        description="Phoenix collector endpoint"
+    )
+    phoenix_project_name: str = Field(
+        default="mind-scout",
+        description="Phoenix project name"
+    )
+
     @property
     def db_path(self) -> Path:
         """Get database path."""

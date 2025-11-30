@@ -8,7 +8,12 @@ from typing import Optional
 
 from anthropic import Anthropic
 
+from mindscout.observability import init_phoenix
+
 logger = logging.getLogger(__name__)
+
+# Initialize Phoenix tracing when module loads
+init_phoenix()
 
 
 class LLMClient:

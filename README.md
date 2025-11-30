@@ -24,6 +24,12 @@ Mind Scout uses agentic workflows to discover, process, and recommend AI researc
 - **Semantic search** - Natural language queries to find relevant papers
 - **Similarity matching** - Find papers similar to ones you like
 
+### 🔭 LLM Observability & Evaluation
+- **Phoenix tracing** - Full observability for all LLM calls via Arize Phoenix
+- **Cloud dashboard** - Monitor latency, token usage, and costs in real-time
+- **Topic evaluation** - Evaluate quality of AI-extracted topics with LLM-as-judge
+- **OpenTelemetry** - Industry-standard tracing with automatic Anthropic instrumentation
+
 ### 🎯 Personalized Recommendations
 - **User profiles** - Set your interests, skill level, and preferences
 - **Smart recommendations** - Multi-factor scoring algorithm:
@@ -185,14 +191,27 @@ The CLI provides powerful commands for power users. Here are the most commonly u
 | `mindscout process` | Extract topics with AI | `mindscout process --limit 10` |
 | `mindscout topics` | View discovered topics | `mindscout topics` |
 | `mindscout find-by-topic` | Search by topic | `mindscout find-by-topic "transformers"` |
+| `mindscout evaluate` | Evaluate topic extraction quality | `mindscout evaluate -n 10 -v` |
 
 For detailed command options and examples, run `mindscout <command> --help` or see the [full documentation](docs/README.md).
 
 ## Configuration
 
+Create a `.env` file in the project root:
+
+```bash
+# Required for AI features
+ANTHROPIC_API_KEY=your-anthropic-key
+
+# Optional: Phoenix observability (get key from https://app.phoenix.arize.com)
+MINDSCOUT_PHOENIX_API_KEY=your-phoenix-key
+MINDSCOUT_PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/your-space
+```
+
+Other settings:
 - **Data directory**: `~/.mindscout/` (set `MINDSCOUT_DATA_DIR` to change)
 - **arXiv categories**: `cs.AI`, `cs.LG`, `cs.CL`, `cs.CV`
-- **API key**: Set `ANTHROPIC_API_KEY` for AI features
+- **Phoenix tracing**: Enabled by default when API key is set (disable with `MINDSCOUT_PHOENIX_ENABLED=false`)
 
 ## Roadmap
 
