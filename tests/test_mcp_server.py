@@ -12,17 +12,21 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from mindscout.database import get_session, Article, UserProfile
 
-# Import the MCP server module (handling the hyphenated name)
-spec = importlib.util.spec_from_file_location(
-    "mcp_server",
-    Path(__file__).parent.parent / "mcp-server" / "server.py"
-)
-mcp_server = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mcp_server)
+
+@pytest.fixture
+def mcp_server(isolated_test_db):
+    """Import the MCP server module after database is initialized."""
+    spec = importlib.util.spec_from_file_location(
+        "mcp_server",
+        Path(__file__).parent.parent / "mcp-server" / "server.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 @pytest.fixture
-def sample_articles():
+def sample_articles(isolated_test_db):
     """Create sample articles for testing."""
     session = get_session()
 
@@ -87,7 +91,7 @@ def sample_articles():
 
 
 @pytest.fixture
-def sample_profile():
+def sample_profile(isolated_test_db):
     """Create sample user profile for testing."""
     session = get_session()
 
@@ -112,7 +116,7 @@ def sample_profile():
 class TestSearchPapers:
     """Tests for search_papers tool."""
 
-    def test_search_papers_basic(self, sample_articles):
+    def test_search_papers_basic(self, mcp_server, sample_articles):
         """Test basic semantic search functionality."""
         # Get sample article
         session = get_session()
@@ -138,7 +142,7 @@ class TestSearchPapers:
             assert results[0]["relevance_score"] == 85.0
             mock_instance.close.assert_called_once()
 
-    def test_search_papers_empty_results(self):
+    def test_search_papers_empty_results(self, mcp_server):
         """Test search with no results."""
         with patch.object(mcp_server, 'VectorStore') as mock_vs:
             mock_instance = MagicMock()
@@ -154,7 +158,7 @@ class TestSearchPapers:
 class TestGetArticle:
     """Tests for get_article tool."""
 
-    def test_get_article_success(self, sample_articles):
+    def test_get_article_success(self, mcp_server, sample_articles):
         """Test getting a specific article."""
         article_id = sample_articles[0]
         result = mcp_server.get_article(article_id=article_id)
@@ -165,7 +169,7 @@ class TestGetArticle:
         assert "abstract" in result
         assert "url" in result
 
-    def test_get_article_not_found(self):
+    def test_get_article_not_found(self, mcp_server):
         """Test getting a non-existent article."""
         result = mcp_server.get_article(article_id=99999)
 
@@ -176,7 +180,7 @@ class TestGetArticle:
 class TestListArticles:
     """Tests for list_articles tool."""
 
-    def test_list_articles_basic(self, sample_articles):
+    def test_list_articles_basic(self, mcp_server, sample_articles):
         """Test listing articles with default parameters."""
         result = mcp_server.list_articles()
 
@@ -186,7 +190,7 @@ class TestListArticles:
         assert len(result["articles"]) == 3
         assert result["page"] == 1
 
-    def test_list_articles_pagination(self, sample_articles):
+    def test_list_articles_pagination(self, mcp_server, sample_articles):
         """Test pagination."""
         result = mcp_server.list_articles(page=1, page_size=2)
 
@@ -194,7 +198,7 @@ class TestListArticles:
         assert result["total"] == 3
         assert result["total_pages"] == 2
 
-    def test_list_articles_unread_only(self, sample_articles):
+    def test_list_articles_unread_only(self, mcp_server, sample_articles):
         """Test filtering by unread status."""
         result = mcp_server.list_articles(unread_only=True)
 
@@ -202,7 +206,7 @@ class TestListArticles:
         for article in result["articles"]:
             assert article["is_read"] == False
 
-    def test_list_articles_filter_by_source(self, sample_articles):
+    def test_list_articles_filter_by_source(self, mcp_server, sample_articles):
         """Test filtering by source."""
         result = mcp_server.list_articles(source="arxiv")
 
@@ -214,7 +218,7 @@ class TestListArticles:
 class TestRateArticle:
     """Tests for rate_article tool."""
 
-    def test_rate_article_success(self, sample_articles):
+    def test_rate_article_success(self, mcp_server, sample_articles):
         """Test rating an article."""
         article_id = sample_articles[0]
         result = mcp_server.rate_article(article_id=article_id, rating=4)
@@ -229,14 +233,14 @@ class TestRateArticle:
         assert article.rating == 4
         session.close()
 
-    def test_rate_article_invalid_rating(self, sample_articles):
+    def test_rate_article_invalid_rating(self, mcp_server, sample_articles):
         """Test rating with invalid value."""
         result = mcp_server.rate_article(article_id=sample_articles[0], rating=6)
 
         assert "error" in result
         assert "between 1 and 5" in result["error"]
 
-    def test_rate_article_not_found(self):
+    def test_rate_article_not_found(self, mcp_server):
         """Test rating a non-existent article."""
         result = mcp_server.rate_article(article_id=99999, rating=5)
 
@@ -247,7 +251,7 @@ class TestRateArticle:
 class TestMarkArticleRead:
     """Tests for mark_article_read tool."""
 
-    def test_mark_article_read_success(self, sample_articles):
+    def test_mark_article_read_success(self, mcp_server, sample_articles):
         """Test marking an article as read."""
         article_id = sample_articles[0]
         result = mcp_server.mark_article_read(article_id=article_id, is_read=True)
@@ -261,7 +265,7 @@ class TestMarkArticleRead:
         assert article.is_read == True
         session.close()
 
-    def test_mark_article_unread(self, sample_articles):
+    def test_mark_article_unread(self, mcp_server, sample_articles):
         """Test marking an article as unread."""
         article_id = sample_articles[1]  # This one is already read
         result = mcp_server.mark_article_read(article_id=article_id, is_read=False)
@@ -273,7 +277,7 @@ class TestMarkArticleRead:
 class TestGetProfile:
     """Tests for get_profile tool."""
 
-    def test_get_profile_with_existing(self, sample_articles, sample_profile):
+    def test_get_profile_with_existing(self, mcp_server, sample_articles, sample_profile):
         """Test getting existing profile with statistics."""
         result = mcp_server.get_profile()
 
@@ -284,7 +288,7 @@ class TestGetProfile:
         assert result["statistics"]["read_articles"] == 1
         assert result["statistics"]["read_percentage"] == 33.3
 
-    def test_get_profile_without_existing(self, sample_articles):
+    def test_get_profile_without_existing(self, mcp_server, sample_articles):
         """Test getting profile when none exists."""
         result = mcp_server.get_profile()
 
@@ -296,7 +300,7 @@ class TestGetProfile:
 class TestUpdateInterests:
     """Tests for update_interests tool."""
 
-    def test_update_interests_new_profile(self):
+    def test_update_interests_new_profile(self, mcp_server):
         """Test updating interests for new profile."""
         interests = ["machine learning", "computer vision"]
         result = mcp_server.update_interests(interests=interests)
@@ -310,7 +314,7 @@ class TestUpdateInterests:
         assert profile.interests == "machine learning,computer vision"
         session.close()
 
-    def test_update_interests_existing_profile(self, sample_profile):
+    def test_update_interests_existing_profile(self, mcp_server, sample_profile):
         """Test updating interests for existing profile."""
         new_interests = ["reinforcement learning", "robotics"]
         result = mcp_server.update_interests(interests=new_interests)
@@ -322,7 +326,7 @@ class TestUpdateInterests:
 class TestFetchArticles:
     """Tests for fetch_articles tool."""
 
-    def test_fetch_articles_arxiv(self):
+    def test_fetch_articles_arxiv(self, mcp_server):
         """Test fetching from arXiv."""
         with patch.object(mcp_server, 'fetch_arxiv') as mock_fetch:
             mock_fetch.return_value = 5
@@ -335,7 +339,7 @@ class TestFetchArticles:
             assert "cs.AI" in result["categories"]
             mock_fetch.assert_called_once()
 
-    def test_fetch_articles_semanticscholar_success(self):
+    def test_fetch_articles_semanticscholar_success(self, mcp_server):
         """Test fetching from Semantic Scholar."""
         with patch.object(mcp_server, 'SemanticScholarFetcher') as mock_fetcher_class:
             mock_fetcher = MagicMock()
@@ -357,14 +361,14 @@ class TestFetchArticles:
             assert result["duplicates"] == 1
             mock_fetcher.close.assert_called_once()
 
-    def test_fetch_articles_semanticscholar_no_query(self):
+    def test_fetch_articles_semanticscholar_no_query(self, mcp_server):
         """Test Semantic Scholar without query."""
         result = mcp_server.fetch_articles(source="semanticscholar", limit=10)
 
         assert "error" in result
         assert "required" in result["error"]
 
-    def test_fetch_articles_invalid_source(self):
+    def test_fetch_articles_invalid_source(self, mcp_server):
         """Test with invalid source."""
         result = mcp_server.fetch_articles(source="invalid", limit=10)
 
