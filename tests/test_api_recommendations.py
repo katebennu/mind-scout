@@ -21,18 +21,15 @@ def client():
 
 
 @pytest.fixture
-def sample_articles_with_profile(tmp_path, monkeypatch):
+def sample_articles_with_profile(isolated_test_db):
     """Create sample articles and user profile."""
-    # Use temporary database
-    monkeypatch.setenv("MINDSCOUT_DATA_DIR", str(tmp_path))
-
     session = get_session()
 
     # Create user profile
     profile = UserProfile(
-        interests=["transformers", "natural language processing"],
+        interests="transformers,natural language processing",
         skill_level="intermediate",
-        preferred_sources=["arxiv"],
+        preferred_sources="arxiv",
         daily_reading_goal=5
     )
     session.add(profile)

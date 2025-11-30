@@ -21,11 +21,8 @@ def client():
 
 
 @pytest.fixture
-def sample_articles_with_embeddings(tmp_path, monkeypatch):
+def sample_articles_with_embeddings(isolated_test_db):
     """Create sample articles and index them in vector store."""
-    # Use temporary database
-    monkeypatch.setenv("MINDSCOUT_DATA_DIR", str(tmp_path))
-
     session = get_session()
 
     # Create sample articles with distinct topics
@@ -177,10 +174,8 @@ class TestSearchStats:
         assert "total_articles" in data
         assert data["total_articles"] == 3
 
-    def test_search_stats_empty_db(self, client, tmp_path, monkeypatch):
+    def test_search_stats_empty_db(self, client, isolated_test_db):
         """Test stats with empty vector store."""
-        monkeypatch.setenv("MINDSCOUT_DATA_DIR", str(tmp_path))
-
         response = client.get("/api/search/stats")
         assert response.status_code == 200
 
