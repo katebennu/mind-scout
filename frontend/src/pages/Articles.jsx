@@ -25,7 +25,15 @@ import {
   TextField,
   Alert,
 } from '@mui/material'
-import { Launch } from '@mui/icons-material'
+import {
+  BarChart,
+  CheckCircle,
+  Circle,
+  Launch,
+  Psychology,
+  School,
+  Science,
+} from '@mui/icons-material'
 
 const API_BASE = 'http://localhost:8000/api'
 
