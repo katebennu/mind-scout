@@ -1,11 +1,12 @@
 """Tests for articles API endpoints."""
 
-import pytest
-from fastapi.testclient import TestClient
 from datetime import datetime
 
+import pytest
+from fastapi.testclient import TestClient
+
 from backend.main import app
-from mindscout.database import get_session, Article
+from mindscout.database import Article, get_session
 
 
 @pytest.fixture
@@ -35,7 +36,7 @@ def sample_articles(isolated_test_db):
             is_read=False,
             citation_count=10,
             has_implementation=True,
-            github_url="https://github.com/test/1"
+            github_url="https://github.com/test/1",
         ),
         Article(
             source_id="test-ss-2",
@@ -51,7 +52,7 @@ def sample_articles(isolated_test_db):
             is_read=True,
             rating=5,
             citation_count=50,
-            has_implementation=False
+            has_implementation=False,
         ),
         Article(
             source_id="test-arxiv-3",
@@ -67,8 +68,8 @@ def sample_articles(isolated_test_db):
             is_read=False,
             citation_count=25,
             has_implementation=True,
-            github_url="https://github.com/test/3"
-        )
+            github_url="https://github.com/test/3",
+        ),
     ]
 
     for article in articles:
@@ -193,10 +194,7 @@ class TestMarkArticleRead:
 
     def test_mark_article_read(self, client, sample_articles):
         """Test marking article as read."""
-        response = client.post(
-            "/api/articles/1/read",
-            json={"is_read": True}
-        )
+        response = client.post("/api/articles/1/read", json={"is_read": True})
         assert response.status_code == 200
 
         data = response.json()
@@ -209,10 +207,7 @@ class TestMarkArticleRead:
 
     def test_mark_article_unread(self, client, sample_articles):
         """Test marking article as unread."""
-        response = client.post(
-            "/api/articles/2/read",
-            json={"is_read": False}
-        )
+        response = client.post("/api/articles/2/read", json={"is_read": False})
         assert response.status_code == 200
 
         data = response.json()
@@ -221,10 +216,7 @@ class TestMarkArticleRead:
 
     def test_mark_read_not_found(self, client, sample_articles):
         """Test marking non-existent article as read."""
-        response = client.post(
-            "/api/articles/999/read",
-            json={"is_read": True}
-        )
+        response = client.post("/api/articles/999/read", json={"is_read": True})
         assert response.status_code == 404
 
 
@@ -233,10 +225,7 @@ class TestRateArticle:
 
     def test_rate_article_success(self, client, sample_articles):
         """Test rating an article."""
-        response = client.post(
-            "/api/articles/1/rate",
-            json={"rating": 4}
-        )
+        response = client.post("/api/articles/1/rate", json={"rating": 4})
         assert response.status_code == 200
 
         data = response.json()
@@ -251,26 +240,17 @@ class TestRateArticle:
 
     def test_rate_article_invalid_rating_too_low(self, client, sample_articles):
         """Test rating with value < 1."""
-        response = client.post(
-            "/api/articles/1/rate",
-            json={"rating": 0}
-        )
+        response = client.post("/api/articles/1/rate", json={"rating": 0})
         assert response.status_code == 400
         assert "between 1 and 5" in response.json()["detail"]
 
     def test_rate_article_invalid_rating_too_high(self, client, sample_articles):
         """Test rating with value > 5."""
-        response = client.post(
-            "/api/articles/1/rate",
-            json={"rating": 6}
-        )
+        response = client.post("/api/articles/1/rate", json={"rating": 6})
         assert response.status_code == 400
         assert "between 1 and 5" in response.json()["detail"]
 
     def test_rate_article_not_found(self, client, sample_articles):
         """Test rating non-existent article."""
-        response = client.post(
-            "/api/articles/999/rate",
-            json={"rating": 5}
-        )
+        response = client.post("/api/articles/999/rate", json={"rating": 5})
         assert response.status_code == 404

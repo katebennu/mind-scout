@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Test script to verify fetch functionality."""
 
-from mindscout.database import get_session, Article
+from mindscout.database import Article, get_session
 from mindscout.fetchers.arxiv import fetch_arxiv
 
 print("Before fetch:")

@@ -1,12 +1,13 @@
 """Tests for subscriptions API endpoints."""
 
+from datetime import datetime
+from unittest.mock import MagicMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from datetime import datetime
-from unittest.mock import patch, MagicMock
 
 from backend.main import app
-from mindscout.database import get_session, RSSFeed
+from mindscout.database import RSSFeed, get_session
 
 
 @pytest.fixture
@@ -27,7 +28,7 @@ def sample_feeds(isolated_test_db):
             category="tech_blog",
             is_active=True,
             check_interval=60,
-            created_date=datetime(2024, 1, 1)
+            created_date=datetime(2024, 1, 1),
         ),
         RSSFeed(
             url="https://example.com/feed2.xml",
@@ -36,14 +37,14 @@ def sample_feeds(isolated_test_db):
             is_active=True,
             check_interval=30,
             last_checked=datetime(2024, 1, 15),
-            created_date=datetime(2024, 1, 2)
+            created_date=datetime(2024, 1, 2),
         ),
         RSSFeed(
             url="https://example.com/feed3.xml",
             title="Inactive Feed",
             category="news",
             is_active=False,
-            created_date=datetime(2024, 1, 3)
+            created_date=datetime(2024, 1, 3),
         ),
     ]
 
@@ -110,14 +111,15 @@ class TestCreateSubscription:
         mock_feed.feed.get.return_value = "Mocked Feed Title"
 
         import feedparser
+
         with patch.object(feedparser, "parse", return_value=mock_feed):
             response = client.post(
                 "/api/subscriptions",
                 json={
                     "url": "https://example.com/valid-feed.xml",
                     "title": "My Custom Feed",
-                    "category": "tech_blog"
-                }
+                    "category": "tech_blog",
+                },
             )
 
         assert response.status_code == 200
@@ -136,10 +138,10 @@ class TestCreateSubscription:
         mock_feed.feed.title = "Auto Detected Title"
 
         import feedparser
+
         with patch.object(feedparser, "parse", return_value=mock_feed):
             response = client.post(
-                "/api/subscriptions",
-                json={"url": "https://example.com/auto-title.xml"}
+                "/api/subscriptions", json={"url": "https://example.com/auto-title.xml"}
             )
 
         assert response.status_code == 200
@@ -152,10 +154,10 @@ class TestCreateSubscription:
         mock_feed.entries = []
 
         import feedparser
+
         with patch.object(feedparser, "parse", return_value=mock_feed):
             response = client.post(
-                "/api/subscriptions",
-                json={"url": "https://example.com/invalid.xml"}
+                "/api/subscriptions", json={"url": "https://example.com/invalid.xml"}
             )
 
         assert response.status_code == 400
@@ -168,10 +170,11 @@ class TestCreateSubscription:
         mock_feed.entries = [{"title": "Test"}]
 
         import feedparser
+
         with patch.object(feedparser, "parse", return_value=mock_feed):
             response = client.post(
                 "/api/subscriptions",
-                json={"url": "https://example.com/feed1.xml"}  # Already exists
+                json={"url": "https://example.com/feed1.xml"},  # Already exists
             )
 
         assert response.status_code == 400
@@ -201,28 +204,19 @@ class TestUpdateSubscription:
 
     def test_update_subscription_title(self, client, sample_feeds):
         """Test updating subscription title."""
-        response = client.put(
-            "/api/subscriptions/1",
-            json={"title": "Updated Title"}
-        )
+        response = client.put("/api/subscriptions/1", json={"title": "Updated Title"})
         assert response.status_code == 200
         assert response.json()["title"] == "Updated Title"
 
     def test_update_subscription_deactivate(self, client, sample_feeds):
         """Test deactivating a subscription."""
-        response = client.put(
-            "/api/subscriptions/1",
-            json={"is_active": False}
-        )
+        response = client.put("/api/subscriptions/1", json={"is_active": False})
         assert response.status_code == 200
         assert response.json()["is_active"] is False
 
     def test_update_subscription_not_found(self, client, sample_feeds):
         """Test updating non-existent subscription."""
-        response = client.put(
-            "/api/subscriptions/999",
-            json={"title": "New Title"}
-        )
+        response = client.put("/api/subscriptions/999", json={"title": "New Title"})
         assert response.status_code == 404
 
 

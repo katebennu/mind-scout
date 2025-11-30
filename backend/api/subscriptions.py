@@ -1,12 +1,13 @@
 """RSS subscription API endpoints."""
 
-from typing import List, Optional
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, HttpUrl
+from typing import Optional
 
-from mindscout.database import get_session, RSSFeed
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
 from mindscout.config import CURATED_FEEDS
+from mindscout.database import RSSFeed, get_session
 
 router = APIRouter()
 
@@ -45,7 +46,7 @@ class CuratedFeedResponse(BaseModel):
     description: str
 
 
-@router.get("", response_model=List[SubscriptionResponse])
+@router.get("", response_model=list[SubscriptionResponse])
 def list_subscriptions():
     """List all RSS feed subscriptions."""
     session = get_session()
@@ -58,7 +59,7 @@ def list_subscriptions():
         session.close()
 
 
-@router.get("/curated", response_model=List[CuratedFeedResponse])
+@router.get("/curated", response_model=list[CuratedFeedResponse])
 def list_curated_feeds():
     """Get list of curated/suggested RSS feeds."""
     return [
@@ -66,7 +67,7 @@ def list_curated_feeds():
             url=feed["url"],
             title=feed["title"],
             category=feed["category"],
-            description=feed["description"]
+            description=feed["description"],
         )
         for feed in CURATED_FEEDS
     ]
@@ -101,7 +102,7 @@ def create_subscription(request: SubscriptionCreate):
             title=title,
             category=request.category,
             is_active=True,
-            check_interval=60
+            check_interval=60,
         )
 
         session.add(subscription)
@@ -218,7 +219,7 @@ def refresh_all_subscriptions():
     session = get_session()
 
     try:
-        feeds = session.query(RSSFeed).filter(RSSFeed.is_active == True).all()
+        feeds = session.query(RSSFeed).filter(RSSFeed.is_active).all()
 
         fetcher = RSSFetcher()
         total_new = 0

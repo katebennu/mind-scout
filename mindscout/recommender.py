@@ -1,10 +1,9 @@
 """Recommendation engine for personalized article suggestions."""
 
 import json
-from typing import List, Dict, Optional
 from datetime import datetime, timedelta
-from sqlalchemy import and_, or_
-from mindscout.database import get_session, Article
+
+from mindscout.database import Article, get_session
 from mindscout.profile import ProfileManager
 
 
@@ -22,7 +21,7 @@ class RecommendationEngine:
         days_back: int = 30,
         min_score: float = 0.1,
         unread_only: bool = True,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Get personalized article recommendations.
 
         Args:
@@ -46,7 +45,7 @@ class RecommendationEngine:
 
         # Filter by read status
         if unread_only:
-            query = query.filter(Article.is_read == False)
+            query = query.filter(not Article.is_read)
 
         # Get all candidates
         candidates = query.all()
@@ -57,11 +56,13 @@ class RecommendationEngine:
             score, reasons = self._score_article(article, interests, profile)
 
             if score >= min_score:
-                scored_articles.append({
-                    "article": article,
-                    "score": score,
-                    "reasons": reasons,
-                })
+                scored_articles.append(
+                    {
+                        "article": article,
+                        "score": score,
+                        "reasons": reasons,
+                    }
+                )
 
         # Sort by score (descending) and limit
         scored_articles.sort(key=lambda x: x["score"], reverse=True)
@@ -69,11 +70,8 @@ class RecommendationEngine:
         return scored_articles[:limit]
 
     def _score_article(
-        self,
-        article: Article,
-        interests: List[str],
-        profile
-    ) -> tuple[float, List[str]]:
+        self, article: Article, interests: list[str], profile
+    ) -> tuple[float, list[str]]:
         """Score an article based on user profile.
 
         Args:
@@ -104,9 +102,9 @@ class RecommendationEngine:
         if skill_score > 0.6:  # Only mention if notably relevant
             score += skill_score * 0.15
             if profile.skill_level:
-                if profile.skill_level.lower() == 'beginner' and skill_score > 0.8:
+                if profile.skill_level.lower() == "beginner" and skill_score > 0.8:
                     reasons.append("Good for beginners")
-                elif profile.skill_level.lower() == 'advanced' and skill_score > 0.8:
+                elif profile.skill_level.lower() == "advanced" and skill_score > 0.8:
                     reasons.append("Cutting-edge research")
         else:
             score += skill_score * 0.15
@@ -131,7 +129,7 @@ class RecommendationEngine:
 
         return min(score, 1.0), reasons
 
-    def _score_topics(self, article: Article, interests: List[str]) -> float:
+    def _score_topics(self, article: Article, interests: list[str]) -> float:
         """Score article based on topic matching.
 
         Returns:
@@ -156,7 +154,8 @@ class RecommendationEngine:
 
         # Count matches
         matches = sum(
-            1 for interest in interests_lower
+            1
+            for interest in interests_lower
             if any(interest in topic or topic in interest for topic in article_topics_lower)
         )
 
@@ -174,6 +173,7 @@ class RecommendationEngine:
 
         # Logarithmic scaling: 10 citations = 0.5, 100 = 0.75, 1000 = 1.0
         import math
+
         score = math.log10(max(article.citation_count, 1)) / 3.0
         return min(score, 1.0)
 
@@ -235,8 +235,16 @@ class RecommendationEngine:
 
         # Keywords indicating beginner-friendly content
         beginner_keywords = [
-            'survey', 'review', 'introduction', 'tutorial', 'overview',
-            'primer', 'guide', 'fundamentals', 'basics', 'introduction to'
+            "survey",
+            "review",
+            "introduction",
+            "tutorial",
+            "overview",
+            "primer",
+            "guide",
+            "fundamentals",
+            "basics",
+            "introduction to",
         ]
 
         # Combine title and abstract for keyword matching
@@ -248,7 +256,7 @@ class RecommendationEngine:
             age_days = (datetime.utcnow() - article.published_date).days
 
         # Beginner: Prefer educational content and well-established papers
-        if skill == 'beginner':
+        if skill == "beginner":
             # Check for beginner-friendly keywords
             if any(keyword in text for keyword in beginner_keywords):
                 return 1.0  # Perfect match for tutorials/surveys
@@ -273,7 +281,7 @@ class RecommendationEngine:
             return 0.5  # Neutral for other papers
 
         # Intermediate: No strong bias, slight preference for balance
-        elif skill == 'intermediate':
+        elif skill == "intermediate":
             # Slight boost for papers 1-2 years old (current but not bleeding edge)
             if age_days:
                 if 180 < age_days < 730:  # 6 months to 2 years
@@ -287,7 +295,7 @@ class RecommendationEngine:
             return 0.5  # Neutral default
 
         # Advanced: Prefer cutting-edge, high-impact research
-        elif skill == 'advanced':
+        elif skill == "advanced":
             # Strong preference for very recent papers
             if age_days:
                 if age_days < 90:
@@ -312,7 +320,7 @@ class RecommendationEngine:
 
         return 0.5  # Default neutral
 
-    def explain_recommendation(self, article: Article) -> Dict:
+    def explain_recommendation(self, article: Article) -> dict:
         """Explain why an article is recommended.
 
         Args:
@@ -338,7 +346,7 @@ class RecommendationEngine:
                 "source_preference": self._score_source(article, profile),
                 "recency": self._score_recency(article),
                 "has_code": article.has_implementation,
-            }
+            },
         }
 
     def get_semantic_recommendations(
@@ -346,7 +354,7 @@ class RecommendationEngine:
         limit: int = 10,
         use_interests: bool = True,
         use_reading_history: bool = True,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Get recommendations using semantic similarity.
 
         Args:
@@ -375,36 +383,40 @@ class RecommendationEngine:
                         article = result["article"]
                         # Skip read articles
                         if not article.is_read:
-                            recommendations.append({
-                                "article": article,
-                                "score": result["relevance"],
-                                "reasons": [f"Semantically matches your interests ({result['relevance']:.0%})"],
-                                "method": "interest_search"
-                            })
+                            recommendations.append(
+                                {
+                                    "article": article,
+                                    "score": result["relevance"],
+                                    "reasons": [
+                                        f"Semantically matches your interests ({result['relevance']:.0%})"
+                                    ],
+                                    "method": "interest_search",
+                                }
+                            )
 
             # Strategy 2: Find papers similar to highly-rated ones
             if use_reading_history:
                 # Get user's highly rated articles (4-5 stars)
-                high_rated = self.session.query(Article).filter(
-                    Article.rating >= 4
-                ).limit(3).all()
+                high_rated = self.session.query(Article).filter(Article.rating >= 4).limit(3).all()
 
                 for rated_article in high_rated:
                     similar = vector_store.find_similar(
-                        rated_article.id,
-                        n_results=5,
-                        min_similarity=0.5
+                        rated_article.id, n_results=5, min_similarity=0.5
                     )
 
                     for sim in similar:
                         article = sim["article"]
                         if not article.is_read:
-                            recommendations.append({
-                                "article": article,
-                                "score": sim["similarity"],
-                                "reasons": [f"Similar to '{rated_article.title[:50]}...' ({sim['similarity']:.0%})"],
-                                "method": "similar_to_liked"
-                            })
+                            recommendations.append(
+                                {
+                                    "article": article,
+                                    "score": sim["similarity"],
+                                    "reasons": [
+                                        f"Similar to '{rated_article.title[:50]}...' ({sim['similarity']:.0%})"
+                                    ],
+                                    "method": "similar_to_liked",
+                                }
+                            )
 
             # Remove duplicates and sort by score
             seen_ids = set()

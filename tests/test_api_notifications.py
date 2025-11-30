@@ -1,11 +1,12 @@
 """Tests for notifications API endpoints."""
 
-import pytest
-from fastapi.testclient import TestClient
 from datetime import datetime
 
+import pytest
+from fastapi.testclient import TestClient
+
 from backend.main import app
-from mindscout.database import get_session, Article, RSSFeed, Notification
+from mindscout.database import Article, Notification, RSSFeed, get_session
 
 
 @pytest.fixture
@@ -21,10 +22,7 @@ def sample_notifications(isolated_test_db):
 
     # Create a feed
     feed = RSSFeed(
-        url="https://example.com/feed.xml",
-        title="Test Feed",
-        category="tech_blog",
-        is_active=True
+        url="https://example.com/feed.xml", title="Test Feed", category="tech_blog", is_active=True
     )
     session.add(feed)
     session.flush()
@@ -40,7 +38,7 @@ def sample_notifications(isolated_test_db):
             source="rss",
             source_name="Test Feed",
             published_date=datetime(2024, 1, 15),
-            fetched_date=datetime(2024, 1, 20)
+            fetched_date=datetime(2024, 1, 20),
         ),
         Article(
             source_id="test-2",
@@ -51,7 +49,7 @@ def sample_notifications(isolated_test_db):
             source="rss",
             source_name="Test Feed",
             published_date=datetime(2024, 1, 16),
-            fetched_date=datetime(2024, 1, 21)
+            fetched_date=datetime(2024, 1, 21),
         ),
         Article(
             source_id="test-3",
@@ -62,7 +60,7 @@ def sample_notifications(isolated_test_db):
             source="rss",
             source_name="Test Feed",
             published_date=datetime(2024, 1, 17),
-            fetched_date=datetime(2024, 1, 22)
+            fetched_date=datetime(2024, 1, 22),
         ),
     ]
 
@@ -77,7 +75,7 @@ def sample_notifications(isolated_test_db):
             feed_id=feed.id,
             type="new_article",
             is_read=False,
-            created_date=datetime(2024, 1, 20, 10, 0)
+            created_date=datetime(2024, 1, 20, 10, 0),
         ),
         Notification(
             article_id=2,
@@ -85,14 +83,14 @@ def sample_notifications(isolated_test_db):
             type="new_article",
             is_read=True,
             created_date=datetime(2024, 1, 21, 10, 0),
-            read_date=datetime(2024, 1, 21, 12, 0)
+            read_date=datetime(2024, 1, 21, 12, 0),
         ),
         Notification(
             article_id=3,
             feed_id=feed.id,
             type="new_article",
             is_read=False,
-            created_date=datetime(2024, 1, 22, 10, 0)
+            created_date=datetime(2024, 1, 22, 10, 0),
         ),
     ]
 

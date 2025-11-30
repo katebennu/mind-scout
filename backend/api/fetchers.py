@@ -1,6 +1,7 @@
 """Paper fetcher API endpoints for arXiv and Semantic Scholar."""
 
-from typing import List, Optional
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from slowapi import Limiter
@@ -16,7 +17,7 @@ router = APIRouter()
 
 class ArxivFetchRequest(BaseModel):
     query: Optional[str] = None  # Keywords to search in all fields
-    categories: Optional[List[str]] = None
+    categories: Optional[list[str]] = None
     author: Optional[str] = None
     title: Optional[str] = None
     max_results: Optional[int] = 100
@@ -41,7 +42,7 @@ class CategoryResponse(BaseModel):
     url: str
 
 
-@router.get("/arxiv/categories", response_model=List[CategoryResponse])
+@router.get("/arxiv/categories", response_model=list[CategoryResponse])
 def get_arxiv_categories():
     """Get available arXiv categories."""
     category_names = {
@@ -52,11 +53,7 @@ def get_arxiv_categories():
     }
 
     return [
-        CategoryResponse(
-            code=code,
-            name=category_names.get(code, code),
-            url=url
-        )
+        CategoryResponse(code=code, name=category_names.get(code, code), url=url)
         for code, url in ARXIV_FEEDS.items()
     ]
 
@@ -88,8 +85,7 @@ def fetch_arxiv(request: Request, body: ArxivFetchRequest = None):
             invalid = [c for c in body.categories if c not in ARXIV_FEEDS]
             if invalid:
                 raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid categories: {', '.join(invalid)}"
+                    status_code=400, detail=f"Invalid categories: {', '.join(invalid)}"
                 )
             categories = body.categories
 
@@ -131,7 +127,7 @@ def fetch_arxiv(request: Request, body: ArxivFetchRequest = None):
         return FetchResponse(
             success=True,
             new_articles=new_count,
-            message=f"Fetched {new_count} new papers from arXiv ({desc})"
+            message=f"Fetched {new_count} new papers from arXiv ({desc})",
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -169,7 +165,7 @@ def fetch_semantic_scholar(request: Request, body: SemanticScholarFetchRequest):
         return FetchResponse(
             success=True,
             new_articles=new_count,
-            message=f"Fetched {new_count} new papers from Semantic Scholar for '{body.query}'"
+            message=f"Fetched {new_count} new papers from Semantic Scholar for '{body.query}'",
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -188,7 +184,7 @@ def process_unprocessed(request: Request):
         return FetchResponse(
             success=True,
             new_articles=processed,
-            message=f"Processed {processed} articles ({failed} failed)"
+            message=f"Processed {processed} articles ({failed} failed)",
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -277,8 +273,7 @@ def create_processing_batch(request: Request, body: BatchCreateRequest = None):
         batch_id = processor.create_async_batch(limit=limit)
 
         return BatchResponse(
-            batch_id=batch_id,
-            message=f"Created async batch for up to {limit} articles"
+            batch_id=batch_id, message=f"Created async batch for up to {limit} articles"
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -323,8 +318,7 @@ def apply_batch_results(request: Request, batch_id: str):
 
         if status["status"] != "ended":
             raise HTTPException(
-                status_code=400,
-                detail=f"Batch is not complete. Status: {status['status']}"
+                status_code=400, detail=f"Batch is not complete. Status: {status['status']}"
             )
 
         # Apply results
@@ -335,7 +329,7 @@ def apply_batch_results(request: Request, batch_id: str):
             success=True,
             updated=updated,
             failed=failed,
-            message=f"Applied batch results: {updated} updated, {failed} failed"
+            message=f"Applied batch results: {updated} updated, {failed} failed",
         )
     except HTTPException:
         raise

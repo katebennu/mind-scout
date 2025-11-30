@@ -1,16 +1,17 @@
 """Articles API endpoints."""
 
-from typing import List, Optional
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Query, Request, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mindscout.database import Article, get_async_db
 from mindscout.config import get_settings
+from mindscout.database import Article, get_async_db
 
 settings = get_settings()
 limiter = Limiter(key_func=get_remote_address)
@@ -43,7 +44,7 @@ class ArticleResponse(BaseModel):
 
 
 class ArticleListResponse(BaseModel):
-    articles: List[ArticleResponse]
+    articles: list[ArticleResponse]
     total: int
     page: int
     page_size: int
@@ -62,11 +63,7 @@ class RateArticleRequest(BaseModel):
 async def list_sources(request: Request, db: AsyncSession = Depends(get_async_db)):
     """Get list of distinct source names for filtering."""
     stmt = (
-        select(
-            Article.source,
-            Article.source_name,
-            func.count(Article.id).label('count')
-        )
+        select(Article.source, Article.source_name, func.count(Article.id).label("count"))
         .group_by(Article.source, Article.source_name)
         .order_by(func.count(Article.id).desc())
     )
@@ -90,7 +87,7 @@ async def list_articles(
     source: Optional[str] = None,
     source_name: Optional[str] = None,
     sort_by: str = Query("fetched_date", pattern="^(fetched_date|published_date|rating)$"),
-    sort_order: str = Query("desc", pattern="^(asc|desc)$")
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
 ):
     """List articles with pagination and filters."""
     # Build base query
@@ -98,7 +95,7 @@ async def list_articles(
 
     # Apply filters
     if unread_only:
-        stmt = stmt.where(Article.is_read == False)
+        stmt = stmt.where(not Article.is_read)
 
     if source:
         stmt = stmt.where(Article.source == source)
@@ -115,31 +112,21 @@ async def list_articles(
     if sort_by == "rating":
         # Sort by rating (nulls last for desc)
         if sort_order == "desc":
-            stmt = stmt.order_by(
-                Article.rating.desc().nullslast(),
-                Article.id.desc()
-            )
+            stmt = stmt.order_by(Article.rating.desc().nullslast(), Article.id.desc())
         else:
-            stmt = stmt.order_by(
-                Article.rating.asc().nullsfirst(),
-                Article.id.asc()
-            )
+            stmt = stmt.order_by(Article.rating.asc().nullsfirst(), Article.id.asc())
     else:
         # Default: primary sort by fetched_date (truncated to minute), secondary by published_date
         # Truncating to minute groups articles fetched in the same batch together
-        fetched_minute = func.strftime('%Y-%m-%d %H:%M', Article.fetched_date)
+        fetched_minute = func.strftime("%Y-%m-%d %H:%M", Article.fetched_date)
 
         if sort_order == "desc":
             stmt = stmt.order_by(
-                fetched_minute.desc(),
-                Article.published_date.desc(),
-                Article.id.desc()
+                fetched_minute.desc(), Article.published_date.desc(), Article.id.desc()
             )
         else:
             stmt = stmt.order_by(
-                fetched_minute.asc(),
-                Article.published_date.asc(),
-                Article.id.asc()
+                fetched_minute.asc(), Article.published_date.asc(), Article.id.asc()
             )
 
     # Apply pagination
@@ -153,7 +140,7 @@ async def list_articles(
         articles=[ArticleResponse.model_validate(a) for a in articles],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
@@ -177,7 +164,7 @@ async def mark_read(
     request: Request,
     article_id: int,
     body: MarkReadRequest,
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Mark article as read or unread."""
     stmt = select(Article).where(Article.id == article_id)
@@ -199,7 +186,7 @@ async def rate_article(
     request: Request,
     article_id: int,
     body: RateArticleRequest,
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Rate an article (1-5 stars)."""
     if not 1 <= body.rating <= 5:

@@ -1,8 +1,8 @@
 """LLM evaluation using Phoenix Evals."""
 
 import logging
-from typing import List, Optional
 from dataclasses import dataclass
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EvalResult:
     """Result from an evaluation."""
+
     score: float
     label: str
     explanation: Optional[str] = None
@@ -46,7 +47,7 @@ Respond with exactly one word: excellent, good, or poor.""",
             choices={"excellent": 1.0, "good": 0.5, "poor": 0.0},
         )
 
-    def evaluate(self, title: str, abstract: str, topics: List[str]) -> EvalResult:
+    def evaluate(self, title: str, abstract: str, topics: list[str]) -> EvalResult:
         """Evaluate extracted topics for a single article.
 
         Args:
@@ -57,28 +58,20 @@ Respond with exactly one word: excellent, good, or poor.""",
         Returns:
             EvalResult with score, label, and explanation
         """
-        results = self.evaluator.evaluate({
-            "title": title,
-            "abstract": abstract,
-            "topics": ", ".join(topics)
-        })
+        results = self.evaluator.evaluate(
+            {"title": title, "abstract": abstract, "topics": ", ".join(topics)}
+        )
 
         # Results is a list of Score objects
         if results:
             score_obj = results[0]
             return EvalResult(
-                score=score_obj.score,
-                label=score_obj.label,
-                explanation=score_obj.explanation
+                score=score_obj.score, label=score_obj.label, explanation=score_obj.explanation
             )
 
         return EvalResult(score=0.0, label="unknown", explanation=None)
 
-    def evaluate_batch(
-        self,
-        articles: List[dict],
-        concurrency: int = 5
-    ) -> List[EvalResult]:
+    def evaluate_batch(self, articles: list[dict], concurrency: int = 5) -> list[EvalResult]:
         """Evaluate topics for multiple articles.
 
         Args:
@@ -98,7 +91,7 @@ Respond with exactly one word: excellent, good, or poor.""",
             result = self.evaluate(
                 title=article["title"],
                 abstract=article["abstract"],
-                topics=topics.split(", ") if isinstance(topics, str) else topics
+                topics=topics.split(", ") if isinstance(topics, str) else topics,
             )
             eval_results.append(result)
 

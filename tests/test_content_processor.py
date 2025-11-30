@@ -1,10 +1,11 @@
 """Tests for content processor."""
 
 import json
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
-from mindscout.database import get_session, Article, UserProfile, Notification
+import pytest
+
+from mindscout.database import Article, Notification, UserProfile, get_session
 
 
 @pytest.fixture
@@ -383,9 +384,11 @@ class TestCreateInterestNotification:
         assert result is True
 
         # Verify notification was created
-        notification = session.query(Notification).filter_by(
-            article_id=article.id, type="interest_match"
-        ).first()
+        notification = (
+            session.query(Notification)
+            .filter_by(article_id=article.id, type="interest_match")
+            .first()
+        )
         assert notification is not None
 
         session.close()
@@ -444,9 +447,11 @@ class TestCreateInterestNotification:
         assert result2 is False
 
         # Verify only one notification exists
-        count = session.query(Notification).filter_by(
-            article_id=article.id, type="interest_match"
-        ).count()
+        count = (
+            session.query(Notification)
+            .filter_by(article_id=article.id, type="interest_match")
+            .count()
+        )
         assert count == 1
 
         session.close()

@@ -1,8 +1,6 @@
 """Tests for Phoenix evaluation module."""
 
-import pytest
-from unittest.mock import patch, MagicMock
-from dataclasses import dataclass
+from unittest.mock import MagicMock, patch
 
 
 class TestEvalResult:
@@ -44,7 +42,7 @@ class TestTopicEvaluator:
         mock_evaluator = MagicMock()
         mock_create_classifier.return_value = mock_evaluator
 
-        evaluator = TopicEvaluator()
+        TopicEvaluator()
 
         # Check LLM was created with correct provider
         mock_llm.assert_called_once_with(provider="anthropic", model="claude-3-5-haiku-20241022")
@@ -67,7 +65,7 @@ class TestTopicEvaluator:
         mock_llm.return_value = MagicMock()
         mock_create_classifier.return_value = MagicMock()
 
-        evaluator = TopicEvaluator(model="claude-3-5-sonnet-20241022")
+        TopicEvaluator(model="claude-3-5-sonnet-20241022")
 
         mock_llm.assert_called_once_with(provider="anthropic", model="claude-3-5-sonnet-20241022")
 
@@ -75,7 +73,7 @@ class TestTopicEvaluator:
     @patch("phoenix.evals.create_classifier")
     def test_evaluate_returns_result(self, mock_create_classifier, mock_llm):
         """Test that evaluate returns proper result."""
-        from mindscout.evaluation import TopicEvaluator, EvalResult
+        from mindscout.evaluation import EvalResult, TopicEvaluator
 
         # Mock the score object returned by Phoenix
         mock_score = MagicMock()
@@ -93,7 +91,7 @@ class TestTopicEvaluator:
         result = evaluator.evaluate(
             title="Test Paper",
             abstract="This is about machine learning",
-            topics=["machine learning", "AI"]
+            topics=["machine learning", "AI"],
         )
 
         assert isinstance(result, EvalResult)
@@ -112,7 +110,7 @@ class TestTopicEvaluator:
     @patch("phoenix.evals.create_classifier")
     def test_evaluate_handles_empty_result(self, mock_create_classifier, mock_llm):
         """Test that evaluate handles empty results gracefully."""
-        from mindscout.evaluation import TopicEvaluator, EvalResult
+        from mindscout.evaluation import EvalResult, TopicEvaluator
 
         mock_evaluator = MagicMock()
         mock_evaluator.evaluate.return_value = []  # Empty result
@@ -121,11 +119,7 @@ class TestTopicEvaluator:
         mock_llm.return_value = MagicMock()
 
         evaluator = TopicEvaluator()
-        result = evaluator.evaluate(
-            title="Test Paper",
-            abstract="Abstract",
-            topics=["topic1"]
-        )
+        result = evaluator.evaluate(title="Test Paper", abstract="Abstract", topics=["topic1"])
 
         assert isinstance(result, EvalResult)
         assert result.score == 0.0
@@ -136,7 +130,7 @@ class TestTopicEvaluator:
     @patch("phoenix.evals.create_classifier")
     def test_evaluate_batch(self, mock_create_classifier, mock_llm):
         """Test batch evaluation."""
-        from mindscout.evaluation import TopicEvaluator, EvalResult
+        from mindscout.evaluation import TopicEvaluator
 
         # Mock scores for two articles
         mock_score1 = MagicMock()
@@ -158,7 +152,7 @@ class TestTopicEvaluator:
         evaluator = TopicEvaluator()
         articles = [
             {"title": "Paper 1", "abstract": "Abstract 1", "topics": ["topic1"]},
-            {"title": "Paper 2", "abstract": "Abstract 2", "topics": ["topic2", "topic3"]}
+            {"title": "Paper 2", "abstract": "Abstract 2", "topics": ["topic2", "topic3"]},
         ]
 
         results = evaluator.evaluate_batch(articles)
@@ -188,7 +182,11 @@ class TestTopicEvaluator:
 
         evaluator = TopicEvaluator()
         articles = [
-            {"title": "Paper", "abstract": "Abstract", "topics": "topic1, topic2"}  # String instead of list
+            {
+                "title": "Paper",
+                "abstract": "Abstract",
+                "topics": "topic1, topic2",
+            }  # String instead of list
         ]
 
         results = evaluator.evaluate_batch(articles)

@@ -1,11 +1,12 @@
 """Notification API endpoints."""
 
-from typing import List, Optional
 from datetime import datetime
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from mindscout.database import get_session, Notification, Article, RSSFeed
+from mindscout.database import Article, Notification, RSSFeed, get_session
 
 router = APIRouter()
 
@@ -45,12 +46,8 @@ class NotificationCountResponse(BaseModel):
     total: int
 
 
-@router.get("", response_model=List[NotificationResponse])
-def list_notifications(
-    unread_only: bool = False,
-    limit: int = 50,
-    offset: int = 0
-):
+@router.get("", response_model=list[NotificationResponse])
+def list_notifications(unread_only: bool = False, limit: int = 50, offset: int = 0):
     """List notifications, newest first."""
     session = get_session()
 
@@ -58,35 +55,41 @@ def list_notifications(
         query = session.query(Notification).order_by(Notification.created_date.desc())
 
         if unread_only:
-            query = query.filter(Notification.is_read == False)
+            query = query.filter(not Notification.is_read)
 
         notifications = query.offset(offset).limit(limit).all()
 
         results = []
         for notif in notifications:
             article = session.query(Article).filter(Article.id == notif.article_id).first()
-            feed = session.query(RSSFeed).filter(RSSFeed.id == notif.feed_id).first() if notif.feed_id else None
+            feed = (
+                session.query(RSSFeed).filter(RSSFeed.id == notif.feed_id).first()
+                if notif.feed_id
+                else None
+            )
 
             if article:
-                results.append(NotificationResponse(
-                    id=notif.id,
-                    article=ArticleSummary(
-                        id=article.id,
-                        title=article.title,
-                        source=article.source,
-                        url=article.url,
-                        published_date=article.published_date
-                    ),
-                    feed=FeedSummary(
-                        id=feed.id,
-                        title=feed.title,
-                        url=feed.url
-                    ) if feed else None,
-                    type=notif.type,
-                    is_read=notif.is_read,
-                    created_date=notif.created_date,
-                    read_date=notif.read_date
-                ))
+                results.append(
+                    NotificationResponse(
+                        id=notif.id,
+                        article=ArticleSummary(
+                            id=article.id,
+                            title=article.title,
+                            source=article.source,
+                            url=article.url,
+                            published_date=article.published_date,
+                        ),
+                        feed=(
+                            FeedSummary(id=feed.id, title=feed.title, url=feed.url)
+                            if feed
+                            else None
+                        ),
+                        type=notif.type,
+                        is_read=notif.is_read,
+                        created_date=notif.created_date,
+                        read_date=notif.read_date,
+                    )
+                )
 
         return results
 
@@ -100,7 +103,7 @@ def get_notification_count():
     session = get_session()
 
     try:
-        unread = session.query(Notification).filter(Notification.is_read == False).count()
+        unread = session.query(Notification).filter(not Notification.is_read).count()
         total = session.query(Notification).count()
 
         return NotificationCountResponse(unread=unread, total=total)
@@ -115,7 +118,9 @@ def mark_notification_read(notification_id: int):
     session = get_session()
 
     try:
-        notification = session.query(Notification).filter(Notification.id == notification_id).first()
+        notification = (
+            session.query(Notification).filter(Notification.id == notification_id).first()
+        )
         if not notification:
             raise HTTPException(status_code=404, detail="Notification not found")
 
@@ -135,12 +140,9 @@ def mark_all_notifications_read():
     session = get_session()
 
     try:
-        session.query(Notification).filter(
-            Notification.is_read == False
-        ).update({
-            Notification.is_read: True,
-            Notification.read_date: datetime.utcnow()
-        })
+        session.query(Notification).filter(not Notification.is_read).update(
+            {Notification.is_read: True, Notification.read_date: datetime.utcnow()}
+        )
         session.commit()
 
         return {"success": True, "message": "All notifications marked as read"}
@@ -155,7 +157,9 @@ def delete_notification(notification_id: int):
     session = get_session()
 
     try:
-        notification = session.query(Notification).filter(Notification.id == notification_id).first()
+        notification = (
+            session.query(Notification).filter(Notification.id == notification_id).first()
+        )
         if not notification:
             raise HTTPException(status_code=404, detail="Notification not found")
 
@@ -176,7 +180,7 @@ def clear_all_notifications(read_only: bool = True):
     try:
         query = session.query(Notification)
         if read_only:
-            query = query.filter(Notification.is_read == True)
+            query = query.filter(Notification.is_read)
 
         deleted_count = query.delete()
         session.commit()
@@ -184,7 +188,7 @@ def clear_all_notifications(read_only: bool = True):
         return {
             "success": True,
             "deleted_count": deleted_count,
-            "message": f"Deleted {deleted_count} notifications"
+            "message": f"Deleted {deleted_count} notifications",
         }
 
     finally:

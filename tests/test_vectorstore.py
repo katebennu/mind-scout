@@ -1,12 +1,10 @@
 """Tests for vector store."""
 
-import pytest
-import shutil
-import os
 from datetime import datetime
-from unittest.mock import patch, MagicMock
 
-from mindscout.database import get_session, Article
+import pytest
+
+from mindscout.database import Article, get_session
 
 
 @pytest.fixture
@@ -19,8 +17,8 @@ def fresh_vectorstore(isolated_test_db):
     try:
         # Delete all existing items
         existing = store.collection.get()
-        if existing['ids']:
-            store.collection.delete(ids=existing['ids'])
+        if existing["ids"]:
+            store.collection.delete(ids=existing["ids"])
     except Exception:
         pass
 
@@ -265,11 +263,7 @@ class TestSemanticSearch:
         store.index_articles()
 
         # Search with source filter
-        results = store.semantic_search(
-            "neural networks",
-            n_results=5,
-            filters={"source": "arxiv"}
-        )
+        results = store.semantic_search("neural networks", n_results=5, filters={"source": "arxiv"})
 
         # All results should be from arxiv
         for r in results:

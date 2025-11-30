@@ -2,7 +2,7 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional
+
 from mindscout.database import Article, get_db_session
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class BaseFetcher(ABC):
         self.source_name = source_name
 
     @abstractmethod
-    def fetch(self, **kwargs) -> List[Dict]:
+    def fetch(self, **kwargs) -> list[dict]:
         """Fetch articles from the source.
 
         Returns:
@@ -28,7 +28,7 @@ class BaseFetcher(ABC):
         """
         pass
 
-    def store_articles(self, articles: List[Dict]) -> int:
+    def store_articles(self, articles: list[dict]) -> int:
         """Store articles in database.
 
         Args:
@@ -42,10 +42,11 @@ class BaseFetcher(ABC):
         with get_db_session() as session:
             for article_data in articles:
                 # Check if already exists
-                existing = session.query(Article).filter_by(
-                    source_id=article_data["source_id"],
-                    source=article_data["source"]
-                ).first()
+                existing = (
+                    session.query(Article)
+                    .filter_by(source_id=article_data["source_id"], source=article_data["source"])
+                    .first()
+                )
 
                 if existing:
                     # Update existing article with new metadata if available
@@ -60,7 +61,7 @@ class BaseFetcher(ABC):
         logger.info(f"Stored {new_count} new articles from {self.source_name}")
         return new_count
 
-    def _update_article(self, existing: Article, new_data: Dict):
+    def _update_article(self, existing: Article, new_data: dict):
         """Update existing article with new metadata.
 
         Args:
@@ -68,25 +69,25 @@ class BaseFetcher(ABC):
             new_data: New article data dictionary
         """
         # Update citation count if provided
-        if 'citation_count' in new_data and new_data['citation_count'] is not None:
-            existing.citation_count = new_data['citation_count']
+        if "citation_count" in new_data and new_data["citation_count"] is not None:
+            existing.citation_count = new_data["citation_count"]
 
         # Update influential citations if provided
-        if 'influential_citations' in new_data and new_data['influential_citations'] is not None:
-            existing.influential_citations = new_data['influential_citations']
+        if "influential_citations" in new_data and new_data["influential_citations"] is not None:
+            existing.influential_citations = new_data["influential_citations"]
 
         # Update GitHub URL if provided
-        if 'github_url' in new_data and new_data['github_url']:
-            existing.github_url = new_data['github_url']
+        if "github_url" in new_data and new_data["github_url"]:
+            existing.github_url = new_data["github_url"]
             existing.has_implementation = True
 
         # Update Papers with Code URL if provided
-        if 'paper_url_pwc' in new_data and new_data['paper_url_pwc']:
-            existing.paper_url_pwc = new_data['paper_url_pwc']
+        if "paper_url_pwc" in new_data and new_data["paper_url_pwc"]:
+            existing.paper_url_pwc = new_data["paper_url_pwc"]
 
         # Update Hugging Face upvotes if provided
-        if 'hf_upvotes' in new_data and new_data['hf_upvotes'] is not None:
-            existing.hf_upvotes = new_data['hf_upvotes']
+        if "hf_upvotes" in new_data and new_data["hf_upvotes"] is not None:
+            existing.hf_upvotes = new_data["hf_upvotes"]
 
     def fetch_and_store(self, **kwargs) -> int:
         """Fetch articles and store them in database.
@@ -101,7 +102,7 @@ class BaseFetcher(ABC):
         return self.store_articles(articles)
 
     @staticmethod
-    def normalize_article(article_data: Dict) -> Dict:
+    def normalize_article(article_data: dict) -> dict:
         """Normalize article data to standard format.
 
         Args:
@@ -111,7 +112,7 @@ class BaseFetcher(ABC):
             Normalized article dictionary with standard fields
         """
         # Standard fields that all articles must have
-        required_fields = ['source_id', 'source', 'title', 'url']
+        required_fields = ["source_id", "source", "title", "url"]
 
         for field in required_fields:
             if field not in article_data:
@@ -119,16 +120,16 @@ class BaseFetcher(ABC):
 
         # Optional fields with defaults
         normalized = {
-            'authors': article_data.get('authors', ''),
-            'abstract': article_data.get('abstract', ''),
-            'published_date': article_data.get('published_date'),
-            'categories': article_data.get('categories', ''),
-            'citation_count': article_data.get('citation_count'),
-            'influential_citations': article_data.get('influential_citations'),
-            'github_url': article_data.get('github_url'),
-            'has_implementation': article_data.get('has_implementation', False),
-            'paper_url_pwc': article_data.get('paper_url_pwc'),
-            'hf_upvotes': article_data.get('hf_upvotes'),
+            "authors": article_data.get("authors", ""),
+            "abstract": article_data.get("abstract", ""),
+            "published_date": article_data.get("published_date"),
+            "categories": article_data.get("categories", ""),
+            "citation_count": article_data.get("citation_count"),
+            "influential_citations": article_data.get("influential_citations"),
+            "github_url": article_data.get("github_url"),
+            "has_implementation": article_data.get("has_implementation", False),
+            "paper_url_pwc": article_data.get("paper_url_pwc"),
+            "hf_upvotes": article_data.get("hf_upvotes"),
         }
 
         # Add required fields

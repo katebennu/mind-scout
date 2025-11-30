@@ -28,6 +28,7 @@ def init_phoenix(project_name: Optional[str] = None) -> Optional[object]:
     _initialized = True
 
     from mindscout.config import get_settings
+
     settings = get_settings()
 
     if not settings.phoenix_enabled:
@@ -51,8 +52,7 @@ def init_phoenix(project_name: Optional[str] = None) -> Optional[object]:
         os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={api_key}"
 
         _tracer_provider = register(
-            project_name=project,
-            auto_instrument=True  # Auto-instruments Anthropic SDK
+            project_name=project, auto_instrument=True  # Auto-instruments Anthropic SDK
         )
 
         logger.info(

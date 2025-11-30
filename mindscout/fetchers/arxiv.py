@@ -1,8 +1,9 @@
 """arXiv RSS feed fetcher."""
 
 from datetime import datetime
-from typing import List, Dict
+
 import feedparser
+
 from mindscout.config import ARXIV_FEEDS, DEFAULT_CATEGORIES
 from mindscout.database import Article, get_session
 
@@ -20,7 +21,7 @@ def parse_arxiv_id(link: str) -> str:
     return arxiv_id
 
 
-def fetch_arxiv_category(category: str) -> List[Dict]:
+def fetch_arxiv_category(category: str) -> list[dict]:
     """Fetch articles from a single arXiv category.
 
     Args:
@@ -64,7 +65,7 @@ def fetch_arxiv_category(category: str) -> List[Dict]:
     return articles
 
 
-def fetch_arxiv(categories: List[str] = None) -> int:
+def fetch_arxiv(categories: list[str] = None) -> int:
     """Fetch articles from arXiv and store in database.
 
     Args:
@@ -85,9 +86,9 @@ def fetch_arxiv(categories: List[str] = None) -> int:
 
             for article_data in articles:
                 # Check if article already exists
-                existing = session.query(Article).filter_by(
-                    source_id=article_data["source_id"]
-                ).first()
+                existing = (
+                    session.query(Article).filter_by(source_id=article_data["source_id"]).first()
+                )
 
                 if existing:
                     continue

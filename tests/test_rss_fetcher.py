@@ -1,11 +1,12 @@
 """Tests for RSS fetcher."""
 
-import pytest
 from datetime import datetime
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+from mindscout.database import Article, RSSFeed, get_session
 from mindscout.fetchers.rss import RSSFetcher
-from mindscout.database import get_session, Article, RSSFeed, Notification
 
 
 @pytest.fixture
@@ -20,10 +21,7 @@ def sample_feed(isolated_test_db):
     session = get_session()
 
     feed = RSSFeed(
-        url="https://example.com/feed.xml",
-        title="Test Feed",
-        category="tech_blog",
-        is_active=True
+        url="https://example.com/feed.xml", title="Test Feed", category="tech_blog", is_active=True
     )
     session.add(feed)
     session.commit()
@@ -40,12 +38,13 @@ def create_mock_feed_entry(
     summary="Test summary",
     author="Test Author",
     published_parsed=None,
-    entry_id=None
+    entry_id=None,
 ):
     """Create a mock feedparser entry that behaves like a real feedparser entry.
 
     Feedparser entries are dict-like objects that also have attribute access.
     """
+
     # Create a dict subclass that also supports attribute access
     class MockEntry(dict):
         def __getattr__(self, name):
@@ -57,18 +56,20 @@ def create_mock_feed_entry(
         def __setattr__(self, name, value):
             self[name] = value
 
-    entry = MockEntry({
-        "title": title,
-        "link": link,
-        "id": entry_id,
-        "summary": summary,
-        "author": author,
-        "published_parsed": published_parsed or (2024, 1, 15, 10, 0, 0, 0, 0, 0),
-        "updated_parsed": None,
-        "tags": [],
-        "authors": [],
-        "content": [],
-    })
+    entry = MockEntry(
+        {
+            "title": title,
+            "link": link,
+            "id": entry_id,
+            "summary": summary,
+            "author": author,
+            "published_parsed": published_parsed or (2024, 1, 15, 10, 0, 0, 0, 0, 0),
+            "updated_parsed": None,
+            "tags": [],
+            "authors": [],
+            "content": [],
+        }
+    )
 
     return entry
 
@@ -79,9 +80,7 @@ class TestRSSFetcherParseEntry:
     def test_parse_entry_basic(self, fetcher):
         """Test parsing a basic entry."""
         entry = create_mock_feed_entry(
-            title="Test Title",
-            link="https://example.com/test",
-            summary="Test summary content"
+            title="Test Title", link="https://example.com/test", summary="Test summary content"
         )
 
         result = fetcher._parse_entry(entry, "https://example.com/feed.xml")
@@ -94,9 +93,7 @@ class TestRSSFetcherParseEntry:
 
     def test_parse_entry_with_html_in_summary(self, fetcher):
         """Test that HTML is stripped from summary."""
-        entry = create_mock_feed_entry(
-            summary="<p>This is <b>bold</b> and <i>italic</i> text</p>"
-        )
+        entry = create_mock_feed_entry(summary="<p>This is <b>bold</b> and <i>italic</i> text</p>")
 
         result = fetcher._parse_entry(entry, "https://example.com/feed.xml")
 
@@ -122,9 +119,7 @@ class TestRSSFetcherParseEntry:
 
     def test_parse_entry_published_date(self, fetcher):
         """Test parsing of published date."""
-        entry = create_mock_feed_entry(
-            published_parsed=(2024, 3, 15, 14, 30, 0, 0, 0, 0)
-        )
+        entry = create_mock_feed_entry(published_parsed=(2024, 3, 15, 14, 30, 0, 0, 0, 0))
 
         result = fetcher._parse_entry(entry, "https://example.com/feed.xml")
 
@@ -162,14 +157,10 @@ class TestRSSFetcherFetchFeed:
         mock_parsed.feed = {"title": "Test Feed"}
         mock_parsed.entries = [
             create_mock_feed_entry(
-                title="Article 1",
-                link="https://example.com/1",
-                entry_id="id-1"
+                title="Article 1", link="https://example.com/1", entry_id="id-1"
             ),
             create_mock_feed_entry(
-                title="Article 2",
-                link="https://example.com/2",
-                entry_id="id-2"
+                title="Article 2", link="https://example.com/2", entry_id="id-2"
             ),
         ]
 
@@ -185,21 +176,19 @@ class TestRSSFetcherFetchFeed:
         assert articles[0].source_name == "Test Feed"
         session.close()
 
-    def test_fetch_feed_handles_duplicates_in_same_feed(self, fetcher, sample_feed, isolated_test_db):
+    def test_fetch_feed_handles_duplicates_in_same_feed(
+        self, fetcher, sample_feed, isolated_test_db
+    ):
         """Test that duplicate entries within the same feed are handled."""
         mock_parsed = MagicMock(spec=[])
         mock_parsed.feed = {"title": "Test Feed"}
         # Same entry_id appears twice in the feed
         mock_parsed.entries = [
             create_mock_feed_entry(
-                title="Article 1",
-                link="https://example.com/1",
-                entry_id="duplicate-id"
+                title="Article 1", link="https://example.com/1", entry_id="duplicate-id"
             ),
             create_mock_feed_entry(
-                title="Article 1 Copy",
-                link="https://example.com/1",
-                entry_id="duplicate-id"
+                title="Article 1 Copy", link="https://example.com/1", entry_id="duplicate-id"
             ),
         ]
 
@@ -220,9 +209,7 @@ class TestRSSFetcherFetchFeed:
         mock_parsed.feed = {"title": "Test Feed"}
         mock_parsed.entries = [
             create_mock_feed_entry(
-                title="Article 1",
-                link="https://example.com/1",
-                entry_id="id-1"
+                title="Article 1", link="https://example.com/1", entry_id="id-1"
             ),
         ]
 
