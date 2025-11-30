@@ -3,17 +3,27 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from dotenv import load_dotenv
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from backend.api import articles, recommendations, profile, search, subscriptions, notifications, fetchers
-from backend.scheduler import start_scheduler, shutdown_scheduler
+from backend.api import (
+    articles,
+    fetchers,
+    notifications,
+    profile,
+    recommendations,
+    search,
+    subscriptions,
+)
+from backend.scheduler import shutdown_scheduler, start_scheduler
 from mindscout.config import get_settings
 
+# Load .env file for ANTHROPIC_API_KEY and other non-prefixed vars
+load_dotenv()
 settings = get_settings()
 
 # Configure logging
@@ -33,6 +43,7 @@ async def lifespan(app: FastAPI):
     """Manage application lifespan - startup and shutdown events."""
     # Initialize Phoenix tracing
     from mindscout.observability import init_phoenix
+
     init_phoenix()
 
     # Startup
@@ -56,7 +67,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS middleware for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Vite dev server
+    allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -75,11 +86,7 @@ app.include_router(fetchers.router, prefix="/api/fetch", tags=["fetchers"])
 @app.get("/")
 def root():
     """Root endpoint."""
-    return {
-        "name": "Mind Scout API",
-        "version": "0.6.0",
-        "docs": "/docs"
-    }
+    return {"name": "Mind Scout API", "version": "0.6.0", "docs": "/docs"}
 
 
 @app.get("/api/health")

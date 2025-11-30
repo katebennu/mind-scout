@@ -1,11 +1,12 @@
 """Tests for MCP server tools."""
 
-import sys
-from pathlib import Path
-from datetime import datetime
-from unittest.mock import patch, MagicMock
-import pytest
 import importlib.util
+import sys
+from datetime import datetime
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Skip all tests if mcp module is not available
 pytest.importorskip("mcp", reason="MCP module not installed")
@@ -13,15 +14,14 @@ pytest.importorskip("mcp", reason="MCP module not installed")
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from mindscout.database import get_session, Article, UserProfile
+from mindscout.database import Article, UserProfile, get_session
 
 
 @pytest.fixture
 def mcp_server(isolated_test_db):
     """Import the MCP server module after database is initialized."""
     spec = importlib.util.spec_from_file_location(
-        "mcp_server",
-        Path(__file__).parent.parent / "mcp-server" / "server.py"
+        "mcp_server", Path(__file__).parent.parent / "mcp-server" / "server.py"
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -48,7 +48,7 @@ def sample_articles(isolated_test_db):
             published_date=datetime(2017, 6, 12),
             citation_count=50000,
             is_read=False,
-            rating=None
+            rating=None,
         ),
         Article(
             source_id="arxiv_002",
@@ -60,7 +60,7 @@ def sample_articles(isolated_test_db):
             published_date=datetime(2018, 10, 11),
             citation_count=40000,
             is_read=True,
-            rating=5
+            rating=5,
         ),
         Article(
             source_id="ss_001",
@@ -72,8 +72,8 @@ def sample_articles(isolated_test_db):
             published_date=datetime(2020, 5, 28),
             citation_count=30000,
             is_read=False,
-            rating=None
-        )
+            rating=None,
+        ),
     ]
 
     for article in articles:
@@ -103,7 +103,7 @@ def sample_profile(isolated_test_db):
         interests="transformers,natural language processing",
         skill_level="intermediate",
         preferred_sources="arxiv",
-        daily_reading_goal=5
+        daily_reading_goal=5,
     )
 
     session.add(profile)
@@ -127,16 +127,11 @@ class TestSearchPapers:
         session.close()
 
         # Mock VectorStore at the location where it's used in the MCP server
-        with patch.object(mcp_server, 'VectorStore') as mock_vs:
+        with patch.object(mcp_server, "VectorStore") as mock_vs:
             mock_instance = MagicMock()
             mock_vs.return_value = mock_instance
 
-            mock_instance.semantic_search.return_value = [
-                {
-                    "article": article,
-                    "relevance": 0.85
-                }
-            ]
+            mock_instance.semantic_search.return_value = [{"article": article, "relevance": 0.85}]
 
             results = mcp_server.search_papers(query="transformers", limit=5)
 
@@ -147,7 +142,7 @@ class TestSearchPapers:
 
     def test_search_papers_empty_results(self, mcp_server):
         """Test search with no results."""
-        with patch.object(mcp_server, 'VectorStore') as mock_vs:
+        with patch.object(mcp_server, "VectorStore") as mock_vs:
             mock_instance = MagicMock()
             mock_vs.return_value = mock_instance
             mock_instance.semantic_search.return_value = []
@@ -207,7 +202,7 @@ class TestListArticles:
 
         assert result["total"] == 2  # Two unread articles
         for article in result["articles"]:
-            assert article["is_read"] == False
+            assert not article["is_read"]
 
     def test_list_articles_filter_by_source(self, mcp_server, sample_articles):
         """Test filtering by source."""
@@ -226,7 +221,7 @@ class TestRateArticle:
         article_id = sample_articles[0]
         result = mcp_server.rate_article(article_id=article_id, rating=4)
 
-        assert result["success"] == True
+        assert result["success"]
         assert result["rating"] == 4
         assert "message" in result
 
@@ -259,13 +254,13 @@ class TestMarkArticleRead:
         article_id = sample_articles[0]
         result = mcp_server.mark_article_read(article_id=article_id, is_read=True)
 
-        assert result["success"] == True
-        assert result["is_read"] == True
+        assert result["success"]
+        assert result["is_read"]
 
         # Verify in database
         session = get_session()
         article = session.query(Article).filter(Article.id == article_id).first()
-        assert article.is_read == True
+        assert article.is_read
         session.close()
 
     def test_mark_article_unread(self, mcp_server, sample_articles):
@@ -273,8 +268,8 @@ class TestMarkArticleRead:
         article_id = sample_articles[1]  # This one is already read
         result = mcp_server.mark_article_read(article_id=article_id, is_read=False)
 
-        assert result["success"] == True
-        assert result["is_read"] == False
+        assert result["success"]
+        assert not result["is_read"]
 
 
 class TestGetProfile:
@@ -308,7 +303,7 @@ class TestUpdateInterests:
         interests = ["machine learning", "computer vision"]
         result = mcp_server.update_interests(interests=interests)
 
-        assert result["success"] == True
+        assert result["success"]
         assert result["interests"] == interests
 
         # Verify in database (stored as comma-separated string)
@@ -322,7 +317,7 @@ class TestUpdateInterests:
         new_interests = ["reinforcement learning", "robotics"]
         result = mcp_server.update_interests(interests=new_interests)
 
-        assert result["success"] == True
+        assert result["success"]
         assert result["interests"] == new_interests
 
 
@@ -331,12 +326,12 @@ class TestFetchArticles:
 
     def test_fetch_articles_arxiv(self, mcp_server):
         """Test fetching from arXiv."""
-        with patch.object(mcp_server, 'fetch_arxiv') as mock_fetch:
+        with patch.object(mcp_server, "fetch_arxiv") as mock_fetch:
             mock_fetch.return_value = 5
 
             result = mcp_server.fetch_articles(source="arxiv", categories=["cs.AI"], limit=20)
 
-            assert result["success"] == True
+            assert result["success"]
             assert result["source"] == "arxiv"
             assert result["new_articles"] == 5
             assert "cs.AI" in result["categories"]
@@ -344,7 +339,7 @@ class TestFetchArticles:
 
     def test_fetch_articles_semanticscholar_success(self, mcp_server):
         """Test fetching from Semantic Scholar."""
-        with patch.object(mcp_server, 'SemanticScholarFetcher') as mock_fetcher_class:
+        with patch.object(mcp_server, "SemanticScholarFetcher") as mock_fetcher_class:
             mock_fetcher = MagicMock()
             mock_fetcher_class.return_value = mock_fetcher
 
@@ -352,12 +347,10 @@ class TestFetchArticles:
             mock_fetcher.save_to_db.return_value = 2
 
             result = mcp_server.fetch_articles(
-                source="semanticscholar",
-                query="transformers",
-                limit=10
+                source="semanticscholar", query="transformers", limit=10
             )
 
-            assert result["success"] == True
+            assert result["success"]
             assert result["source"] == "semanticscholar"
             assert result["fetched"] == 3
             assert result["new_articles"] == 2

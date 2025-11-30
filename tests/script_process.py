@@ -35,9 +35,9 @@ print(f"  Total: {stats['total_articles']}")
 print(f"  Processed: {stats['processed']}")
 print(f"  Rate: {stats['processing_rate']:.1f}%")
 
-if stats['top_topics']:
+if stats["top_topics"]:
     print("\nTop Topics Discovered:")
-    for topic, count in stats['top_topics'][:5]:
+    for topic, count in stats["top_topics"][:5]:
         print(f"  - {topic}: {count}")
 
 print("\n✓ Test complete!")

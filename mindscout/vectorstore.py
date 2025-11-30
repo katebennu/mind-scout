@@ -1,13 +1,14 @@
 """Vector database integration for semantic search."""
 
 import os
-from typing import List, Dict, Optional
+from typing import Optional
+
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 
 from mindscout.config import DATA_DIR
-from mindscout.database import get_session, Article
+from mindscout.database import Article, get_session
 
 
 class VectorStore:
@@ -21,22 +22,20 @@ class VectorStore:
 
         # Initialize ChromaDB client with persistent storage
         self.client = chromadb.PersistentClient(
-            path=chroma_path,
-            settings=Settings(anonymized_telemetry=False)
+            path=chroma_path, settings=Settings(anonymized_telemetry=False)
         )
 
         # Get or create collection
         self.collection = self.client.get_or_create_collection(
-            name="articles",
-            metadata={"hnsw:space": "cosine"}  # Use cosine similarity
+            name="articles", metadata={"hnsw:space": "cosine"}  # Use cosine similarity
         )
 
         # Initialize embedding model (lightweight and good quality)
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.model = SentenceTransformer("all-MiniLM-L6-v2")
 
         self.session = get_session()
 
-    def embed_text(self, text: str) -> List[float]:
+    def embed_text(self, text: str) -> list[float]:
         """Generate embedding for text.
 
         Args:
@@ -69,12 +68,16 @@ class VectorStore:
                 ids=[str(article.id)],
                 embeddings=[embedding],
                 documents=[text],
-                metadatas=[{
-                    "article_id": article.id,
-                    "source": article.source,
-                    "title": article.title,
-                    "published_date": article.published_date.isoformat() if article.published_date else None,
-                }]
+                metadatas=[
+                    {
+                        "article_id": article.id,
+                        "source": article.source,
+                        "title": article.title,
+                        "published_date": (
+                            article.published_date.isoformat() if article.published_date else None
+                        ),
+                    }
+                ],
             )
             return True
 
@@ -97,7 +100,7 @@ class VectorStore:
         if not force:
             try:
                 results = self.collection.get()
-                existing_ids = set(results['ids'])
+                existing_ids = set(results["ids"])
             except Exception:
                 pass
 
@@ -123,11 +126,8 @@ class VectorStore:
         return indexed
 
     def find_similar(
-        self,
-        article_id: int,
-        n_results: int = 10,
-        min_similarity: float = 0.3
-    ) -> List[Dict]:
+        self, article_id: int, n_results: int = 10, min_similarity: float = 0.3
+    ) -> list[dict]:
         """Find articles similar to a given article.
 
         Args:
@@ -154,7 +154,9 @@ class VectorStore:
             )
 
             similar_articles = []
-            for i, (doc_id, distance) in enumerate(zip(results['ids'][0], results['distances'][0])):
+            for _i, (doc_id, distance) in enumerate(
+                zip(results["ids"][0], results["distances"][0])
+            ):
                 # Skip the query article itself
                 if int(doc_id) == article_id:
                     continue
@@ -169,10 +171,12 @@ class VectorStore:
                 # Get full article from database
                 similar_article = self.session.query(Article).filter_by(id=int(doc_id)).first()
                 if similar_article:
-                    similar_articles.append({
-                        "article": similar_article,
-                        "similarity": similarity,
-                    })
+                    similar_articles.append(
+                        {
+                            "article": similar_article,
+                            "similarity": similarity,
+                        }
+                    )
 
             return similar_articles[:n_results]
 
@@ -181,11 +185,8 @@ class VectorStore:
             return []
 
     def semantic_search(
-        self,
-        query: str,
-        n_results: int = 10,
-        filters: Optional[Dict] = None
-    ) -> List[Dict]:
+        self, query: str, n_results: int = 10, filters: Optional[dict] = None
+    ) -> list[dict]:
         """Perform semantic search for articles.
 
         Args:
@@ -208,16 +209,20 @@ class VectorStore:
             )
 
             search_results = []
-            for i, (doc_id, distance) in enumerate(zip(results['ids'][0], results['distances'][0])):
+            for _i, (doc_id, distance) in enumerate(
+                zip(results["ids"][0], results["distances"][0])
+            ):
                 similarity = 1 - distance
 
                 # Get full article from database
                 article = self.session.query(Article).filter_by(id=int(doc_id)).first()
                 if article:
-                    search_results.append({
-                        "article": article,
-                        "relevance": similarity,
-                    })
+                    search_results.append(
+                        {
+                            "article": article,
+                            "relevance": similarity,
+                        }
+                    )
 
             return search_results
 
@@ -225,7 +230,7 @@ class VectorStore:
             print(f"Error in semantic search: {e}")
             return []
 
-    def get_collection_stats(self) -> Dict:
+    def get_collection_stats(self) -> dict:
         """Get statistics about the vector store.
 
         Returns:

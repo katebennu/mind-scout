@@ -3,12 +3,13 @@
 import hashlib
 import logging
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import Optional
+
 import feedparser
 import requests
 
-from mindscout.fetchers.base import BaseFetcher
 from mindscout.database import Article, RSSFeed, get_db_session
+from mindscout.fetchers.base import BaseFetcher
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +20,9 @@ class RSSFetcher(BaseFetcher):
     def __init__(self):
         super().__init__("rss")
         self.session = requests.Session()
-        self.session.headers.update({
-            "User-Agent": "MindScout/0.6 (RSS Reader)"
-        })
+        self.session.headers.update({"User-Agent": "MindScout/0.6 (RSS Reader)"})
 
-    def fetch(self, url: str, **kwargs) -> List[Dict]:
+    def fetch(self, url: str, **kwargs) -> list[dict]:
         """Fetch articles from an RSS feed URL.
 
         Args:
@@ -42,7 +41,7 @@ class RSSFetcher(BaseFetcher):
 
         return articles
 
-    def _parse_entry(self, entry: Dict, feed_url: str) -> Optional[Dict]:
+    def _parse_entry(self, entry: dict, feed_url: str) -> Optional[dict]:
         """Parse a feed entry into an article dictionary.
 
         Args:
@@ -68,9 +67,7 @@ class RSSFetcher(BaseFetcher):
         # Parse authors
         authors = ""
         if "authors" in entry:
-            authors = ", ".join(
-                author.get("name", "") for author in entry.authors
-            )
+            authors = ", ".join(author.get("name", "") for author in entry.authors)
         elif "author" in entry:
             authors = entry.author
 
@@ -83,6 +80,7 @@ class RSSFetcher(BaseFetcher):
 
         # Strip HTML tags from abstract (simple approach)
         import re
+
         abstract = re.sub(r"<[^>]+>", "", abstract).strip()
 
         # Parse published date
@@ -101,9 +99,7 @@ class RSSFetcher(BaseFetcher):
         # Parse categories/tags
         categories = ""
         if "tags" in entry:
-            categories = ", ".join(
-                tag.get("term", "") for tag in entry.tags if tag.get("term")
-            )
+            categories = ", ".join(tag.get("term", "") for tag in entry.tags if tag.get("term"))
 
         return {
             "source_id": source_id,
@@ -116,7 +112,7 @@ class RSSFetcher(BaseFetcher):
             "categories": categories,
         }
 
-    def _generate_source_id(self, entry: Dict, feed_url: str) -> str:
+    def _generate_source_id(self, entry: dict, feed_url: str) -> str:
         """Generate a unique source ID for an entry.
 
         Uses entry ID if available, otherwise generates hash from URL + title.
@@ -136,7 +132,7 @@ class RSSFetcher(BaseFetcher):
         content = f"{entry.get('link', '')}{entry.get('title', '')}"
         return hashlib.sha256(content.encode()).hexdigest()[:32]
 
-    def fetch_feed(self, feed: RSSFeed) -> Dict:
+    def fetch_feed(self, feed: RSSFeed) -> dict:
         """Fetch new articles from a subscribed feed.
 
         Note: This method opens its own session. For batch operations,
@@ -154,7 +150,7 @@ class RSSFetcher(BaseFetcher):
                 raise ValueError(f"Feed with id {feed.id} not found")
             return self._fetch_feed_impl(db_feed, session)
 
-    def _fetch_feed_impl(self, db_feed: RSSFeed, session) -> Dict:
+    def _fetch_feed_impl(self, db_feed: RSSFeed, session) -> dict:
         """Internal implementation for fetching a feed.
 
         Args:
@@ -200,11 +196,12 @@ class RSSFetcher(BaseFetcher):
 
         # Get existing source_ids in one query
         source_ids = [a["source_id"] for a in articles_to_add]
-        existing_ids = set(
-            row[0] for row in session.query(Article.source_id).filter(
-                Article.source_id.in_(source_ids)
-            ).all()
-        )
+        existing_ids = {
+            row[0]
+            for row in session.query(Article.source_id)
+            .filter(Article.source_id.in_(source_ids))
+            .all()
+        }
 
         # Only add articles that don't exist
         for article_data in articles_to_add:
@@ -221,7 +218,7 @@ class RSSFetcher(BaseFetcher):
             "new_count": new_count,
         }
 
-    def refresh_all_feeds(self) -> Dict:
+    def refresh_all_feeds(self) -> dict:
         """Refresh all active feed subscriptions.
 
         Returns:
@@ -232,10 +229,7 @@ class RSSFetcher(BaseFetcher):
 
         # Get feed IDs first, then fetch each in its own session
         with get_db_session() as session:
-            feed_ids = [
-                feed.id for feed in
-                session.query(RSSFeed).filter(RSSFeed.is_active == True).all()
-            ]
+            feed_ids = [feed.id for feed in session.query(RSSFeed).filter(RSSFeed.is_active).all()]
 
         for feed_id in feed_ids:
             try:
@@ -252,7 +246,7 @@ class RSSFetcher(BaseFetcher):
             "new_count": total_new,
         }
 
-    def fetch_feed_by_id(self, feed_id: int) -> Dict:
+    def fetch_feed_by_id(self, feed_id: int) -> dict:
         """Fetch new articles from a feed by its ID.
 
         Args:

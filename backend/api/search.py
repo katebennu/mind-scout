@@ -1,14 +1,13 @@
 """Search API endpoints."""
 
-from typing import List
 from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from mindscout.vectorstore import VectorStore
-from mindscout.config import get_settings
 from backend.api.articles import ArticleResponse
+from mindscout.config import get_settings
+from mindscout.vectorstore import VectorStore
 
 settings = get_settings()
 limiter = Limiter(key_func=get_remote_address)
@@ -21,26 +20,23 @@ class SearchResult(BaseModel):
     relevance: float
 
 
-@router.get("", response_model=List[SearchResult])
+@router.get("", response_model=list[SearchResult])
 @limiter.limit(f"{settings.rate_limit_requests}/minute")
 def semantic_search(
     request: Request,
     q: str = Query(..., min_length=3, description="Search query"),
-    limit: int = Query(10, ge=1, le=50)
+    limit: int = Query(10, ge=1, le=50),
 ):
     """Perform semantic search for articles."""
     vector_store = VectorStore()
 
     try:
-        results = vector_store.semantic_search(
-            query=q,
-            n_results=limit
-        )
+        results = vector_store.semantic_search(query=q, n_results=limit)
 
         return [
             SearchResult(
                 article=ArticleResponse.model_validate(result["article"]),
-                relevance=result["relevance"]
+                relevance=result["relevance"],
             )
             for result in results
         ]

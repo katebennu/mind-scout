@@ -4,11 +4,12 @@ import {
   Typography,
   Card,
   CardContent,
-  CardActions,
   Button,
+  Checkbox,
   Chip,
   IconButton,
   CircularProgress,
+  ListItemText,
   Pagination,
   Stack,
   Rating,
@@ -25,18 +26,16 @@ import {
   DialogActions,
   TextField,
   Alert,
-  Checkbox,
-  ListItemText,
 } from '@mui/material'
 import {
+  BarChart,
   CheckCircle,
   Circle,
-  Launch,
-  BarChart,
   Download,
-  Science,
-  School,
+  Launch,
   Psychology,
+  School,
+  Science,
 } from '@mui/icons-material'
 
 const API_BASE = 'http://localhost:8000/api'

@@ -1,11 +1,11 @@
 """Tests for recommendation engine."""
 
-import json
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from mindscout.database import get_session, Article, UserProfile
+import pytest
+
+from mindscout.database import Article, UserProfile, get_session
 
 
 @pytest.fixture

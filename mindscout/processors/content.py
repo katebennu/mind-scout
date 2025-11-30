@@ -2,8 +2,9 @@
 
 import json
 from datetime import datetime
-from typing import Optional, List
-from mindscout.database import get_session, Article, UserProfile, Notification
+from typing import Optional
+
+from mindscout.database import Article, Notification, UserProfile, get_session
 from mindscout.processors.llm import LLMClient
 
 
@@ -318,7 +319,7 @@ class ContentProcessor:
 
         try:
             total = session.query(Article).count()
-            processed = session.query(Article).filter(Article.processed == True).count()  # noqa: E712
+            processed = session.query(Article).filter(Article.processed).count()  # noqa: E712
             unprocessed = total - processed
 
             # Get topics distribution
@@ -363,9 +364,7 @@ class ContentProcessor:
             return False
 
         # Parse user interests
-        user_interests = set(
-            i.strip().lower() for i in profile.interests.split(',') if i.strip()
-        )
+        user_interests = {i.strip().lower() for i in profile.interests.split(",") if i.strip()}
         if not user_interests:
             return False
 
@@ -375,7 +374,7 @@ class ContentProcessor:
         except json.JSONDecodeError:
             return False
 
-        article_topics_lower = set(t.lower() for t in article_topics)
+        article_topics_lower = {t.lower() for t in article_topics}
 
         # Check for any overlap between interests and topics
         matching_topics = user_interests & article_topics_lower
@@ -383,22 +382,20 @@ class ContentProcessor:
             return False
 
         # Check if notification already exists for this article
-        existing = session.query(Notification).filter_by(
-            article_id=article.id,
-            type="interest_match"
-        ).first()
+        existing = (
+            session.query(Notification)
+            .filter_by(article_id=article.id, type="interest_match")
+            .first()
+        )
         if existing:
             return False
 
         # Create interest-match notification
-        notification = Notification(
-            article_id=article.id,
-            type="interest_match"
-        )
+        notification = Notification(article_id=article.id, type="interest_match")
         session.add(notification)
         return True
 
-    def get_articles_by_topic(self, topic: str, limit: int = 10) -> List[Article]:
+    def get_articles_by_topic(self, topic: str, limit: int = 10) -> list[Article]:
         """Find articles matching a specific topic.
 
         Args:

@@ -1,16 +1,17 @@
 """Tests for recommendations API endpoints."""
 
 import sys
+from datetime import datetime
 from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
-from datetime import datetime
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.main import app
-from mindscout.database import get_session, Article, UserProfile
+from mindscout.database import Article, UserProfile, get_session
 from mindscout.vectorstore import VectorStore
 
 
@@ -30,7 +31,7 @@ def sample_articles_with_profile(isolated_test_db):
         interests="transformers,natural language processing",
         skill_level="intermediate",
         preferred_sources="arxiv",
-        daily_reading_goal=5
+        daily_reading_goal=5,
     )
     session.add(profile)
     session.commit()
@@ -51,7 +52,7 @@ def sample_articles_with_profile(isolated_test_db):
             citation_count=50000,
             has_implementation=True,
             github_url="https://github.com/tensorflow/tensor2tensor",
-            topics="transformers,attention,nlp"
+            topics="transformers,attention,nlp",
         ),
         Article(
             source_id="test-rec-2",
@@ -66,7 +67,7 @@ def sample_articles_with_profile(isolated_test_db):
             is_read=False,
             citation_count=30000,
             has_implementation=True,
-            topics="transformers,nlp,bert"
+            topics="transformers,nlp,bert",
         ),
         Article(
             source_id="test-rec-3",
@@ -81,7 +82,7 @@ def sample_articles_with_profile(isolated_test_db):
             is_read=True,
             rating=5,
             citation_count=10000,
-            topics="reinforcement learning,deep learning"
+            topics="reinforcement learning,deep learning",
         ),
         Article(
             source_id="test-rec-4",
@@ -95,8 +96,8 @@ def sample_articles_with_profile(isolated_test_db):
             categories="cs.CV",
             is_read=False,
             citation_count=100,
-            topics="computer vision"
-        )
+            topics="computer vision",
+        ),
     ]
 
     for article in articles:
@@ -156,7 +157,8 @@ class TestGetRecommendations:
         if len(data) >= 2:
             top_titles = [r["article"]["title"].lower() for r in data[:2]]
             transformer_related = sum(
-                1 for title in top_titles
+                1
+                for title in top_titles
                 if "transformer" in title or "bert" in title or "attention" in title
             )
             # This is a soft check - interests matching is best effort
@@ -273,7 +275,9 @@ class TestSemanticRecommendations:
 
     def test_semantic_recommendations_use_interests(self, client, sample_articles_with_profile):
         """Test semantic recommendations based on interests."""
-        response = client.get("/api/recommendations/semantic?use_interests=true&use_reading_history=false&limit=5")
+        response = client.get(
+            "/api/recommendations/semantic?use_interests=true&use_reading_history=false&limit=5"
+        )
         assert response.status_code == 200
 
         data = response.json()
@@ -282,9 +286,13 @@ class TestSemanticRecommendations:
             assert "article" in data[0]
             assert "score" in data[0]
 
-    def test_semantic_recommendations_use_reading_history(self, client, sample_articles_with_profile):
+    def test_semantic_recommendations_use_reading_history(
+        self, client, sample_articles_with_profile
+    ):
         """Test semantic recommendations based on reading history."""
-        response = client.get("/api/recommendations/semantic?use_interests=false&use_reading_history=true&limit=5")
+        response = client.get(
+            "/api/recommendations/semantic?use_interests=false&use_reading_history=true&limit=5"
+        )
         assert response.status_code == 200
 
         data = response.json()

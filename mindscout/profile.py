@@ -1,8 +1,9 @@
 """User profile management for personalized recommendations."""
 
-from typing import List, Optional
 from datetime import datetime
-from mindscout.database import get_session, UserProfile
+from typing import Optional
+
+from mindscout.database import UserProfile, get_session
 
 
 class ProfileManager:
@@ -33,7 +34,7 @@ class ProfileManager:
         """Get the user profile."""
         return self.session.query(UserProfile).first()
 
-    def set_interests(self, interests: List[str]) -> UserProfile:
+    def set_interests(self, interests: list[str]) -> UserProfile:
         """Set user interests.
 
         Args:
@@ -48,7 +49,7 @@ class ProfileManager:
         self.session.commit()
         return profile
 
-    def add_interests(self, new_interests: List[str]) -> UserProfile:
+    def add_interests(self, new_interests: list[str]) -> UserProfile:
         """Add new interests without removing existing ones.
 
         Args:
@@ -71,7 +72,7 @@ class ProfileManager:
         self.session.commit()
         return profile
 
-    def remove_interests(self, interests_to_remove: List[str]) -> UserProfile:
+    def remove_interests(self, interests_to_remove: list[str]) -> UserProfile:
         """Remove interests from profile.
 
         Args:
@@ -95,7 +96,7 @@ class ProfileManager:
         self.session.commit()
         return profile
 
-    def get_interests(self) -> List[str]:
+    def get_interests(self) -> list[str]:
         """Get list of user interests.
 
         Returns:
@@ -115,7 +116,7 @@ class ProfileManager:
         Returns:
             Updated profile
         """
-        valid_levels = ['beginner', 'intermediate', 'advanced']
+        valid_levels = ["beginner", "intermediate", "advanced"]
         if skill_level not in valid_levels:
             raise ValueError(f"Skill level must be one of: {', '.join(valid_levels)}")
 
@@ -125,7 +126,7 @@ class ProfileManager:
         self.session.commit()
         return profile
 
-    def set_preferred_sources(self, sources: List[str]) -> UserProfile:
+    def set_preferred_sources(self, sources: list[str]) -> UserProfile:
         """Set preferred sources.
 
         Args:
@@ -169,7 +170,9 @@ class ProfileManager:
         return {
             "interests": self.get_interests(),
             "skill_level": profile.skill_level,
-            "preferred_sources": profile.preferred_sources.split(",") if profile.preferred_sources else [],
+            "preferred_sources": (
+                profile.preferred_sources.split(",") if profile.preferred_sources else []
+            ),
             "daily_reading_goal": profile.daily_reading_goal,
             "created_date": profile.created_date,
             "updated_date": profile.updated_date,

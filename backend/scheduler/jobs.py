@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime
 
-from mindscout.database import get_db_session, PendingBatch, Article
+from mindscout.database import Article, PendingBatch, get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +46,7 @@ async def fetch_and_process_job() -> dict:
     # Get user interests for targeted fetching
     interests = get_user_interests()
     if not interests:
-        logger.warning(
-            "No user interests configured - skipping arXiv and Semantic Scholar fetch"
-        )
+        logger.warning("No user interests configured - skipping arXiv and Semantic Scholar fetch")
 
     # 1. Refresh RSS feeds (always - user explicitly subscribed)
     try:
@@ -58,9 +56,7 @@ async def fetch_and_process_job() -> dict:
         rss_result = rss_fetcher.refresh_all_feeds()
         results["rss"]["feeds"] = rss_result.get("feeds_checked", 0)
         results["rss"]["articles"] = rss_result.get("new_count", 0)
-        logger.info(
-            f"RSS: {results['rss']['articles']} new from {results['rss']['feeds']} feeds"
-        )
+        logger.info(f"RSS: {results['rss']['articles']} new from {results['rss']['feeds']} feeds")
     except Exception as e:
         logger.error(f"RSS fetch failed: {e}")
 
@@ -108,9 +104,9 @@ async def fetch_and_process_job() -> dict:
 
         # Check how many unprocessed articles we have
         with get_db_session() as session:
-            unprocessed_count = session.query(Article).filter(
-                Article.processed == False  # noqa: E712
-            ).count()
+            unprocessed_count = (
+                session.query(Article).filter(Article.processed == False).count()  # noqa: E712
+            )
 
         if unprocessed_count > 0:
             processor = ContentProcessor()
@@ -184,9 +180,11 @@ async def check_pending_batches_job() -> dict:
 
     # Get all pending batches
     with get_db_session() as session:
-        pending_batches = session.query(PendingBatch).filter(
-            PendingBatch.status.in_(["pending", "processing"])
-        ).all()
+        pending_batches = (
+            session.query(PendingBatch)
+            .filter(PendingBatch.status.in_(["pending", "processing"]))
+            .all()
+        )
 
         for batch in pending_batches:
             results["checked"] += 1

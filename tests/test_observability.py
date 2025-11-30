@@ -1,20 +1,21 @@
 """Tests for Phoenix observability module."""
 
-import os
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-import importlib
 
 
 @pytest.fixture(autouse=True)
 def reset_observability_state():
     """Reset observability module state before each test."""
     import mindscout.observability as obs
+
     obs._initialized = False
     obs._tracer_provider = None
 
     # Also clear the settings cache
     from mindscout.config import get_settings
+
     get_settings.cache_clear()
 
     yield
@@ -33,6 +34,7 @@ class TestInitPhoenix:
         monkeypatch.setenv("MINDSCOUT_PHOENIX_ENABLED", "false")
 
         import mindscout.observability as obs
+
         result = obs.init_phoenix()
 
         assert result is None
@@ -46,6 +48,7 @@ class TestInitPhoenix:
         monkeypatch.delenv("MINDSCOUT_PHOENIX_API_KEY", raising=False)
 
         import mindscout.observability as obs
+
         result = obs.init_phoenix()
 
         assert result is None
@@ -78,7 +81,7 @@ class TestInitPhoenix:
 
         with patch.object(obs, "init_phoenix", wraps=obs.init_phoenix):
             with patch("phoenix.otel.register", return_value=mock_tracer) as mock_register:
-                result = obs.init_phoenix()
+                obs.init_phoenix()
 
                 # When register is called successfully, tracing should be enabled
                 if mock_register.called:
@@ -122,6 +125,7 @@ class TestGetTracerProvider:
     def test_get_tracer_provider_returns_none_when_not_initialized(self):
         """Test that get_tracer_provider returns None when not initialized."""
         import mindscout.observability as obs
+
         result = obs.get_tracer_provider()
         assert result is None
 
@@ -132,4 +136,5 @@ class TestIsTracingEnabled:
     def test_is_tracing_enabled_false_when_not_initialized(self):
         """Test that is_tracing_enabled returns False when not initialized."""
         import mindscout.observability as obs
+
         assert obs.is_tracing_enabled() is False

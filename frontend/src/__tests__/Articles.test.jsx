@@ -40,35 +40,51 @@ const mockCategories = [
   { code: 'cs.LG', name: 'Machine Learning' },
 ];
 
-describe('Articles', () => {
-  beforeEach(() => {
-    fetch.mockImplementation((url) => {
-      if (url.includes('/articles/sources')) {
+// Helper to create a standard mock implementation
+const createFetchMock = (overrides = {}) => {
+  return (url) => {
+    // Check overrides first
+    for (const [pattern, response] of Object.entries(overrides)) {
+      if (url.includes(pattern)) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve(mockSources),
+          json: () => Promise.resolve(response),
         });
       }
-      if (url.includes('/fetch/arxiv/categories')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockCategories),
-        });
-      }
-      if (url.includes('/articles?') || url.includes('/articles')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            articles: mockArticles,
-            total: 2,
-          }),
-        });
-      }
+    }
+
+    // Default mocks - order matters, check more specific paths first
+    if (url.includes('/articles/sources')) {
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({}),
+        json: () => Promise.resolve(mockSources),
       });
+    }
+    if (url.includes('/fetch/arxiv/categories')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockCategories),
+      });
+    }
+    if (url.includes('/api/articles')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          articles: mockArticles,
+          total: 2,
+        }),
+      });
+    }
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({}),
     });
+  };
+};
+
+describe('Articles', () => {
+  beforeEach(() => {
+    fetch.mockImplementation(createFetchMock());
   });
 
   it('renders loading state initially', () => {
@@ -188,25 +204,8 @@ describe('Articles', () => {
           json: () => Promise.resolve({ success: true }),
         });
       }
-      if (url.includes('/articles/sources')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockSources),
-        });
-      }
-      if (url.includes('/fetch/arxiv/categories')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockCategories),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          articles: mockArticles,
-          total: 2,
-        }),
-      });
+      // Use default mock for other URLs
+      return createFetchMock()(url, options);
     });
 
     render(<Articles />);

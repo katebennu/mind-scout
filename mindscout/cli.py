@@ -1,15 +1,15 @@
 """Command-line interface for Mind Scout using argparse."""
 
 import argparse
-import sys
 from datetime import datetime
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
 
-from mindscout.database import init_db, get_session, Article, Notification, RSSFeed, UserProfile
-from mindscout.fetchers.arxiv import fetch_arxiv
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
 from mindscout.config import DEFAULT_CATEGORIES
+from mindscout.database import Article, Notification, RSSFeed, UserProfile, get_session, init_db
+from mindscout.fetchers.arxiv import fetch_arxiv
 
 console = Console()
 
@@ -18,7 +18,9 @@ def cmd_fetch(args):
     """Fetch new articles from arXiv."""
     categories = args.categories if args.categories else DEFAULT_CATEGORIES
 
-    console.print(f"[bold blue]Fetching articles from categories:[/bold blue] {', '.join(categories)}")
+    console.print(
+        f"[bold blue]Fetching articles from categories:[/bold blue] {', '.join(categories)}"
+    )
 
     try:
         new_count = fetch_arxiv(list(categories))
@@ -34,9 +36,9 @@ def cmd_search(args):
     """Search and fetch articles from multiple sources."""
     source = args.source.lower()
 
-    if source == 'arxiv':
+    if source == "arxiv":
         _search_arxiv(args)
-    elif source == 'semanticscholar':
+    elif source == "semanticscholar":
         _search_semanticscholar(args)
     else:
         console.print(f"[bold red]Error:[/bold red] Unknown source '{source}'")
@@ -45,8 +47,9 @@ def cmd_search(args):
 
 def _search_arxiv(args):
     """Search arXiv with advanced filters."""
-    from mindscout.fetchers.arxiv_advanced import ArxivAdvancedFetcher
     from datetime import datetime, timedelta
+
+    from mindscout.fetchers.arxiv_advanced import ArxivAdvancedFetcher
 
     fetcher = ArxivAdvancedFetcher()
 
@@ -77,7 +80,9 @@ def _search_arxiv(args):
     if to_date:
         desc_parts.append(f"to: {to_date.strftime('%Y-%m-%d')}")
 
-    console.print(f"[bold blue]Searching arXiv:[/bold blue] {', '.join(desc_parts) if desc_parts else 'all fields'}")
+    console.print(
+        f"[bold blue]Searching arXiv:[/bold blue] {', '.join(desc_parts) if desc_parts else 'all fields'}"
+    )
     console.print(f"[dim]Max results: {args.max_results}, Sort by: {args.sort_by}[/dim]")
 
     try:
@@ -101,6 +106,7 @@ def _search_arxiv(args):
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         import traceback
+
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
 
 
@@ -111,7 +117,9 @@ def _search_semanticscholar(args):
     # Require query for Semantic Scholar
     if not args.query:
         console.print("[bold red]Error:[/bold red] Query is required for Semantic Scholar search")
-        console.print("[yellow]Example:[/yellow] mindscout search --source semanticscholar --query \"transformers\" -n 20")
+        console.print(
+            '[yellow]Example:[/yellow] mindscout search --source semanticscholar --query "transformers" -n 20'
+        )
         return
 
     fetcher = SemanticScholarFetcher()
@@ -136,51 +144,16 @@ def _search_semanticscholar(args):
         )
 
         if new_count > 0:
-            console.print(f"[bold green]✓[/bold green] Added {new_count} new articles with citation data")
+            console.print(
+                f"[bold green]✓[/bold green] Added {new_count} new articles with citation data"
+            )
         else:
             console.print("[yellow]No new articles found (all already in database)[/yellow]")
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         import traceback
-        console.print(f"[dim]{traceback.format_exc()}[/dim]")
 
-
-def cmd_fetch_semantic_scholar(args):
-    """Fetch papers from Semantic Scholar with citation data. DEPRECATED."""
-    console.print("[yellow]⚠ Warning: This command is deprecated. Use 'search --source semanticscholar' instead.[/yellow]\n")
-
-    from mindscout.fetchers.semanticscholar import SemanticScholarFetcher
-
-    fetcher = SemanticScholarFetcher()
-
-    # Build description
-    desc_parts = [f"query: '{args.query}'"]
-    if args.year:
-        desc_parts.append(f"year: {args.year}")
-    if args.min_citations:
-        desc_parts.append(f"min citations: {args.min_citations}")
-
-    console.print(f"[bold blue]Searching Semantic Scholar:[/bold blue] {', '.join(desc_parts)}")
-    console.print(f"[dim]Max results: {args.max_results}, Sort: {args.sort}[/dim]")
-
-    try:
-        new_count = fetcher.fetch_and_store(
-            query=args.query,
-            limit=args.max_results,
-            sort=args.sort,
-            year=args.year,
-            min_citations=args.min_citations,
-        )
-
-        if new_count > 0:
-            console.print(f"[bold green]✓[/bold green] Added {new_count} new articles with citation data")
-        else:
-            console.print("[yellow]No new articles found (all already in database)[/yellow]")
-
-    except Exception as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        import traceback
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
 
 
@@ -204,7 +177,9 @@ def cmd_list(args):
             console.print("[yellow]No articles found[/yellow]")
             return
 
-        table = Table(title=f"Articles ({len(articles)} shown)", show_header=True, header_style="bold cyan")
+        table = Table(
+            title=f"Articles ({len(articles)} shown)", show_header=True, header_style="bold cyan"
+        )
         table.add_column("ID", style="dim", width=6)
         table.add_column("Title", style="bold", min_width=40)
         table.add_column("Source", width=10)
@@ -212,7 +187,9 @@ def cmd_list(args):
         table.add_column("Read", width=6, justify="center")
 
         for article in articles:
-            date_str = article.published_date.strftime("%Y-%m-%d") if article.published_date else "N/A"
+            date_str = (
+                article.published_date.strftime("%Y-%m-%d") if article.published_date else "N/A"
+            )
             read_status = "✓" if article.is_read else "○"
             read_color = "green" if article.is_read else "yellow"
 
@@ -247,7 +224,9 @@ def cmd_show(args):
         content.append(f"[bold cyan]Source:[/bold cyan] {article.source} ({article.source_id})")
 
         if article.published_date:
-            content.append(f"[bold cyan]Published:[/bold cyan] {article.published_date.strftime('%Y-%m-%d')}")
+            content.append(
+                f"[bold cyan]Published:[/bold cyan] {article.published_date.strftime('%Y-%m-%d')}"
+            )
 
         content.append(f"[bold cyan]URL:[/bold cyan] {article.url}")
         content.append(f"[bold cyan]Categories:[/bold cyan] {article.categories or 'N/A'}")
@@ -259,7 +238,9 @@ def cmd_show(args):
         if article.citation_count is not None:
             content.append(f"\n[bold cyan]Citations:[/bold cyan] {article.citation_count}")
             if article.influential_citations is not None:
-                content.append(f"[bold cyan]Influential Citations:[/bold cyan] {article.influential_citations}")
+                content.append(
+                    f"[bold cyan]Influential Citations:[/bold cyan] {article.influential_citations}"
+                )
 
         # Show implementation links if available (Phase 3)
         if article.github_url:
@@ -280,6 +261,7 @@ def cmd_show(args):
         # Show topics if processed
         if article.processed and article.topics:
             import json
+
             try:
                 topics = json.loads(article.topics)
                 content.append(f"\n[bold cyan]Topics:[/bold cyan] {', '.join(topics)}")
@@ -406,7 +388,9 @@ def cmd_topics(args):
     stats = processor.get_processing_stats()
 
     if not stats["top_topics"]:
-        console.print("[yellow]No topics found. Process some articles first with 'mindscout process'[/yellow]")
+        console.print(
+            "[yellow]No topics found. Process some articles first with 'mindscout process'[/yellow]"
+        )
         return
 
     table = Table(title="Top Topics", show_header=True, header_style="bold cyan")
@@ -443,6 +427,7 @@ def cmd_find_by_topic(args):
 
     for article in articles:
         import json
+
         topics_list = json.loads(article.topics) if article.topics else []
         topics_str = ", ".join(topics_list[:3])
         if len(topics_list) > 3:
@@ -492,13 +477,13 @@ def cmd_clear(args):
         else:
             # Confirm deletion unless --force flag is used
             if not args.force:
-                console.print(f"[bold yellow]Warning:[/bold yellow] This will delete:")
+                console.print("[bold yellow]Warning:[/bold yellow] This will delete:")
                 console.print(f"  - {article_count} articles")
                 console.print(f"  - {notification_count} notifications")
                 console.print(f"  - {feed_count} RSS feeds")
                 console.print(f"  - {profile_count} user profile(s)")
                 response = input("Are you sure? Type 'yes' to confirm: ")
-                if response.lower() != 'yes':
+                if response.lower() != "yes":
                     console.print("[yellow]Operation cancelled[/yellow]")
                     return
 
@@ -519,10 +504,11 @@ def cmd_clear(args):
                 # Delete and recreate collection
                 vs.client.delete_collection("articles")
                 vs.collection = vs.client.create_collection(
-                    name="articles",
-                    metadata={"hnsw:space": "cosine"}
+                    name="articles", metadata={"hnsw:space": "cosine"}
                 )
-                console.print(f"[bold green]✓[/bold green] Cleared vector store ({chroma_count} embeddings)")
+                console.print(
+                    f"[bold green]✓[/bold green] Cleared vector store ({chroma_count} embeddings)"
+                )
             else:
                 console.print("[yellow]Vector store is already empty[/yellow]")
         except Exception as e:
@@ -542,53 +528,68 @@ def cmd_profile(args):
     manager = ProfileManager()
 
     try:
-        if args.profile_command == 'show':
+        if args.profile_command == "show":
             # Show profile summary
             summary = manager.get_profile_summary()
 
             panel_content = []
             panel_content.append(f"[bold cyan]Skill Level:[/bold cyan] {summary['skill_level']}")
-            panel_content.append(f"[bold cyan]Daily Reading Goal:[/bold cyan] {summary['daily_reading_goal']} papers")
+            panel_content.append(
+                f"[bold cyan]Daily Reading Goal:[/bold cyan] {summary['daily_reading_goal']} papers"
+            )
 
-            interests = summary['interests']
+            interests = summary["interests"]
             if interests:
-                panel_content.append(f"\n[bold cyan]Interests:[/bold cyan]")
+                panel_content.append("\n[bold cyan]Interests:[/bold cyan]")
                 for interest in interests:
                     panel_content.append(f"  • {interest}")
             else:
-                panel_content.append(f"\n[bold cyan]Interests:[/bold cyan] [dim]None set[/dim]")
+                panel_content.append("\n[bold cyan]Interests:[/bold cyan] [dim]None set[/dim]")
 
-            sources = summary['preferred_sources']
-            panel_content.append(f"\n[bold cyan]Preferred Sources:[/bold cyan] {', '.join(sources)}")
+            sources = summary["preferred_sources"]
+            panel_content.append(
+                f"\n[bold cyan]Preferred Sources:[/bold cyan] {', '.join(sources)}"
+            )
 
-            panel_content.append(f"\n[dim]Last updated: {summary['updated_date'].strftime('%Y-%m-%d %H:%M')}[/dim]")
+            panel_content.append(
+                f"\n[dim]Last updated: {summary['updated_date'].strftime('%Y-%m-%d %H:%M')}[/dim]"
+            )
 
             from rich.panel import Panel
-            console.print(Panel("\n".join(panel_content), title="Your Profile", border_style="cyan"))
 
-        elif args.profile_command == 'set-interests':
+            console.print(
+                Panel("\n".join(panel_content), title="Your Profile", border_style="cyan")
+            )
+
+        elif args.profile_command == "set-interests":
             interests = [i.strip() for i in args.interests.split(",")]
             manager.set_interests(interests)
             console.print(f"[bold green]✓[/bold green] Set interests to: {', '.join(interests)}")
 
-        elif args.profile_command == 'add-interests':
+        elif args.profile_command == "add-interests":
             interests = [i.strip() for i in args.interests.split(",")]
             manager.add_interests(interests)
             all_interests = manager.get_interests()
-            console.print(f"[bold green]✓[/bold green] Added interests. Current interests: {', '.join(all_interests)}")
+            console.print(
+                f"[bold green]✓[/bold green] Added interests. Current interests: {', '.join(all_interests)}"
+            )
 
-        elif args.profile_command == 'set-skill':
+        elif args.profile_command == "set-skill":
             manager.set_skill_level(args.level)
             console.print(f"[bold green]✓[/bold green] Set skill level to: {args.level}")
 
-        elif args.profile_command == 'set-sources':
+        elif args.profile_command == "set-sources":
             sources = [s.strip() for s in args.sources.split(",")]
             manager.set_preferred_sources(sources)
-            console.print(f"[bold green]✓[/bold green] Set preferred sources to: {', '.join(sources)}")
+            console.print(
+                f"[bold green]✓[/bold green] Set preferred sources to: {', '.join(sources)}"
+            )
 
-        elif args.profile_command == 'set-goal':
+        elif args.profile_command == "set-goal":
             manager.set_daily_goal(args.goal)
-            console.print(f"[bold green]✓[/bold green] Set daily reading goal to: {args.goal} papers")
+            console.print(
+                f"[bold green]✓[/bold green] Set daily reading goal to: {args.goal} papers"
+            )
 
     finally:
         manager.close()
@@ -614,7 +615,9 @@ def cmd_rate(args):
         session.commit()
 
         stars = "★" * args.rating + "☆" * (5 - args.rating)
-        console.print(f"[bold green]✓[/bold green] Rated article {args.article_id}: {stars} ({args.rating}/5)")
+        console.print(
+            f"[bold green]✓[/bold green] Rated article {args.article_id}: {stars} ({args.rating}/5)"
+        )
         console.print(f"[dim]{article.title[:80]}[/dim]")
 
     except Exception as e:
@@ -639,7 +642,9 @@ def cmd_recommend(args):
 
         if not recommendations:
             console.print("[yellow]No recommendations found. Try:[/yellow]")
-            console.print("  1. Set your interests: mindscout profile set-interests \"topic1, topic2\"")
+            console.print(
+                '  1. Set your interests: mindscout profile set-interests "topic1, topic2"'
+            )
             console.print("  2. Fetch more articles: mindscout search ...")
             console.print("  3. Process articles: mindscout process")
             return
@@ -682,21 +687,32 @@ def cmd_recommend(args):
             explanation = engine.explain_recommendation(top_rec["article"])
 
             from rich.panel import Panel
+
             panel_content = []
             panel_content.append(f"[bold]Overall Score:[/bold] {explanation['overall_score']:.0%}")
-            panel_content.append(f"\n[bold]Why recommended:[/bold]")
+            panel_content.append("\n[bold]Why recommended:[/bold]")
             for reason in explanation["reasons"]:
                 panel_content.append(f"  • {reason}")
 
-            panel_content.append(f"\n[bold]Score Breakdown:[/bold]")
+            panel_content.append("\n[bold]Score Breakdown:[/bold]")
             panel_content.append(f"  Topic Match: {explanation['details']['topic_match']:.0%}")
             panel_content.append(f"  Citations: {explanation['details']['citation_score']:.0%}")
-            panel_content.append(f"  Skill Match: {explanation['details']['skill_level_match']:.0%}")
+            panel_content.append(
+                f"  Skill Match: {explanation['details']['skill_level_match']:.0%}"
+            )
             panel_content.append(f"  Recency: {explanation['details']['recency']:.0%}")
             panel_content.append(f"  Source: {explanation['details']['source_preference']:.0%}")
-            panel_content.append(f"  Has Code: {'Yes' if explanation['details']['has_code'] else 'No'}")
+            panel_content.append(
+                f"  Has Code: {'Yes' if explanation['details']['has_code'] else 'No'}"
+            )
 
-            console.print(Panel("\n".join(panel_content), title=f"Article {top_rec['article'].id}", border_style="cyan"))
+            console.print(
+                Panel(
+                    "\n".join(panel_content),
+                    title=f"Article {top_rec['article'].id}",
+                    border_style="cyan",
+                )
+            )
 
     finally:
         engine.close()
@@ -708,6 +724,7 @@ def cmd_insights(args):
 
     try:
         from mindscout.profile import ProfileManager
+
         manager = ProfileManager()
 
         # Get profile
@@ -720,20 +737,21 @@ def cmd_insights(args):
 
         # Get rating breakdown
         from sqlalchemy import func
-        rating_dist = session.query(
-            Article.rating,
-            func.count(Article.id)
-        ).filter(
-            Article.rating.isnot(None)
-        ).group_by(Article.rating).all()
+
+        rating_dist = (
+            session.query(Article.rating, func.count(Article.id))
+            .filter(Article.rating.isnot(None))
+            .group_by(Article.rating)
+            .all()
+        )
 
         # Get source breakdown for read articles
-        source_dist = session.query(
-            Article.source,
-            func.count(Article.id)
-        ).filter(
-            Article.is_read == True
-        ).group_by(Article.source).all()
+        source_dist = (
+            session.query(Article.source, func.count(Article.id))
+            .filter(Article.is_read)
+            .group_by(Article.source)
+            .all()
+        )
 
         # Display insights
         table = Table(title="Your Reading Insights", show_header=True, header_style="bold cyan")
@@ -809,14 +827,12 @@ def cmd_similar(args):
             console.print(f"[bold red]Article {args.article_id} not found[/bold red]")
             return
 
-        console.print(f"[bold cyan]Finding articles similar to:[/bold cyan]")
+        console.print("[bold cyan]Finding articles similar to:[/bold cyan]")
         console.print(f"[dim]{article.title}[/dim]\n")
 
         # Find similar articles
         similar = vector_store.find_similar(
-            args.article_id,
-            n_results=args.limit,
-            min_similarity=args.min_similarity
+            args.article_id, n_results=args.limit, min_similarity=args.min_similarity
         )
 
         if not similar:
@@ -848,10 +864,7 @@ def cmd_similar(args):
                 similarity_str = f"[dim]{similarity_str}[/dim]"
 
             table.add_row(
-                str(sim_article.id),
-                similarity_str,
-                sim_article.title[:60],
-                sim_article.source
+                str(sim_article.id), similarity_str, sim_article.title[:60], sim_article.source
             )
 
         console.print(table)
@@ -868,7 +881,7 @@ def cmd_semantic_search(args):
     vector_store = VectorStore()
 
     try:
-        console.print(f"[bold blue]Semantic search:[/bold blue] \"{args.query}\"\n")
+        console.print(f'[bold blue]Semantic search:[/bold blue] "{args.query}"\n')
 
         results = vector_store.semantic_search(args.query, n_results=args.limit)
 
@@ -899,12 +912,7 @@ def cmd_semantic_search(args):
             else:
                 relevance_str = f"[dim]{relevance_str}[/dim]"
 
-            table.add_row(
-                str(article.id),
-                relevance_str,
-                article.title[:60],
-                article.source
-            )
+            table.add_row(str(article.id), relevance_str, article.title[:60], article.source)
 
         console.print(table)
 
@@ -914,13 +922,13 @@ def cmd_semantic_search(args):
 
 def cmd_subscribe(args):
     """Manage RSS feed subscriptions."""
-    from mindscout.database import RSSFeed, Notification
     from mindscout.config import CURATED_FEEDS
+    from mindscout.database import RSSFeed
 
     session = get_session()
 
     try:
-        if args.sub_command == 'list':
+        if args.sub_command == "list":
             feeds = session.query(RSSFeed).order_by(RSSFeed.created_date.desc()).all()
 
             if not feeds:
@@ -941,33 +949,37 @@ def cmd_subscribe(args):
             table.add_column("Active", width=6, justify="center")
 
             for feed in feeds:
-                last_checked = feed.last_checked.strftime("%Y-%m-%d %H:%M") if feed.last_checked else "Never"
+                last_checked = (
+                    feed.last_checked.strftime("%Y-%m-%d %H:%M") if feed.last_checked else "Never"
+                )
                 active = "[green]Yes[/green]" if feed.is_active else "[red]No[/red]"
                 table.add_row(
                     str(feed.id),
                     (feed.title or "Untitled")[:30],
                     feed.category or "-",
                     last_checked,
-                    active
+                    active,
                 )
 
             console.print(table)
 
-        elif args.sub_command == 'add':
+        elif args.sub_command == "add":
             import feedparser
 
             # Check if already subscribed
             existing = session.query(RSSFeed).filter(RSSFeed.url == args.url).first()
             if existing:
-                console.print(f"[yellow]Already subscribed to this feed:[/yellow] {existing.title or args.url}")
+                console.print(
+                    f"[yellow]Already subscribed to this feed:[/yellow] {existing.title or args.url}"
+                )
                 return
 
-            console.print(f"[bold blue]Validating feed...[/bold blue]")
+            console.print("[bold blue]Validating feed...[/bold blue]")
 
             # Validate feed
             feed = feedparser.parse(args.url)
             if feed.bozo and not feed.entries:
-                console.print(f"[bold red]Error:[/bold red] Invalid RSS feed or feed is empty")
+                console.print("[bold red]Error:[/bold red] Invalid RSS feed or feed is empty")
                 return
 
             # Get title from feed if not provided
@@ -977,17 +989,14 @@ def cmd_subscribe(args):
 
             # Create subscription
             subscription = RSSFeed(
-                url=args.url,
-                title=title,
-                category=args.category,
-                is_active=True
+                url=args.url, title=title, category=args.category, is_active=True
             )
             session.add(subscription)
             session.commit()
 
             console.print(f"[bold green]✓[/bold green] Subscribed to: {title or args.url}")
 
-        elif args.sub_command == 'remove':
+        elif args.sub_command == "remove":
             feed = session.query(RSSFeed).filter(RSSFeed.id == args.feed_id).first()
             if not feed:
                 console.print(f"[bold red]Subscription {args.feed_id} not found[/bold red]")
@@ -999,7 +1008,7 @@ def cmd_subscribe(args):
 
             console.print(f"[bold green]✓[/bold green] Unsubscribed from: {title}")
 
-        elif args.sub_command == 'curated':
+        elif args.sub_command == "curated":
             console.print("[bold cyan]Suggested RSS Feeds[/bold cyan]\n")
 
             # Group by category
@@ -1023,7 +1032,7 @@ def cmd_subscribe(args):
 
             console.print("\n[dim]Add a feed: mindscout subscribe add <url>[/dim]")
 
-        elif args.sub_command == 'refresh':
+        elif args.sub_command == "refresh":
             from mindscout.fetchers.rss import RSSFetcher
 
             fetcher = RSSFetcher()
@@ -1037,11 +1046,13 @@ def cmd_subscribe(args):
 
                 console.print(f"[bold blue]Refreshing:[/bold blue] {feed.title or feed.url}")
                 result = fetcher.fetch_feed(feed)
-                console.print(f"[bold green]✓[/bold green] Found {result['new_count']} new articles")
+                console.print(
+                    f"[bold green]✓[/bold green] Found {result['new_count']} new articles"
+                )
 
             else:
                 # Refresh all feeds
-                feeds = session.query(RSSFeed).filter(RSSFeed.is_active == True).all()
+                feeds = session.query(RSSFeed).filter(RSSFeed.is_active).all()
                 if not feeds:
                     console.print("[yellow]No active subscriptions to refresh[/yellow]")
                     return
@@ -1053,7 +1064,9 @@ def cmd_subscribe(args):
                     try:
                         result = fetcher.fetch_feed(feed)
                         if result["new_count"] > 0:
-                            console.print(f"  [green]+{result['new_count']}[/green] {feed.title or feed.url}")
+                            console.print(
+                                f"  [green]+{result['new_count']}[/green] {feed.title or feed.url}"
+                            )
                         total_new += result["new_count"]
                     except Exception as e:
                         console.print(f"  [red]Error[/red] {feed.title or feed.url}: {e}")
@@ -1069,7 +1082,7 @@ def cmd_subscribe(args):
 
 def cmd_evaluate(args):
     """Run evaluations on processed articles using Phoenix Evals."""
-    from mindscout.database import get_db_session, Article
+    from mindscout.database import Article, get_db_session
     from mindscout.observability import init_phoenix
 
     # Initialize Phoenix tracing so eval LLM calls are traced
@@ -1088,11 +1101,13 @@ def cmd_evaluate(args):
         from sqlalchemy.sql.expression import func
 
         # Get random articles with topics and abstracts
-        query = session.query(Article).filter(
-            Article.topics.isnot(None),
-            Article.abstract.isnot(None),
-            Article.abstract != ""
-        ).order_by(func.random())
+        query = (
+            session.query(Article)
+            .filter(
+                Article.topics.isnot(None), Article.abstract.isnot(None), Article.abstract != ""
+            )
+            .order_by(func.random())
+        )
 
         if args.limit:
             query = query.limit(args.limit)
@@ -1117,6 +1132,7 @@ def cmd_evaluate(args):
 
         for article in articles:
             import json
+
             try:
                 topics = json.loads(article.topics) if article.topics else []
             except json.JSONDecodeError:
@@ -1127,9 +1143,7 @@ def cmd_evaluate(args):
 
             try:
                 result = evaluator.evaluate(
-                    title=article.title,
-                    abstract=article.abstract,
-                    topics=topics
+                    title=article.title, abstract=article.abstract, topics=topics
                 )
 
                 results[result.label] = results.get(result.label, 0) + 1
@@ -1153,10 +1167,16 @@ def cmd_evaluate(args):
         # Summary
         total = sum(results.values())
         if total > 0:
-            console.print(f"\n[bold cyan]Summary:[/bold cyan]")
-            console.print(f"  Excellent: [green]{results['excellent']}[/green] ({results['excellent']/total*100:.0f}%)")
-            console.print(f"  Good: [yellow]{results['good']}[/yellow] ({results['good']/total*100:.0f}%)")
-            console.print(f"  Poor: [red]{results['poor']}[/red] ({results['poor']/total*100:.0f}%)")
+            console.print("\n[bold cyan]Summary:[/bold cyan]")
+            console.print(
+                f"  Excellent: [green]{results['excellent']}[/green] ({results['excellent']/total*100:.0f}%)"
+            )
+            console.print(
+                f"  Good: [yellow]{results['good']}[/yellow] ({results['good']/total*100:.0f}%)"
+            )
+            console.print(
+                f"  Poor: [red]{results['poor']}[/red] ({results['poor']/total*100:.0f}%)"
+            )
 
 
 def cmd_notifications(args):
@@ -1166,11 +1186,11 @@ def cmd_notifications(args):
     session = get_session()
 
     try:
-        if args.notif_command == 'list':
+        if args.notif_command == "list":
             query = session.query(Notification).order_by(Notification.created_date.desc())
 
             if args.unread:
-                query = query.filter(Notification.is_read == False)
+                query = query.filter(Notification.is_read.is_(False))
 
             notifications = query.limit(args.limit).all()
 
@@ -1181,49 +1201,69 @@ def cmd_notifications(args):
                     console.print("[yellow]No notifications yet.[/yellow]")
                 return
 
-            unread_count = session.query(Notification).filter(Notification.is_read == False).count()
+            unread_count = (
+                session.query(Notification).filter(Notification.is_read.is_(False)).count()
+            )
             console.print(f"[bold cyan]Notifications[/bold cyan] ({unread_count} unread)\n")
 
             for notif in notifications:
                 article = session.query(Article).filter(Article.id == notif.article_id).first()
-                feed = session.query(RSSFeed).filter(RSSFeed.id == notif.feed_id).first() if notif.feed_id else None
+                feed = (
+                    session.query(RSSFeed).filter(RSSFeed.id == notif.feed_id).first()
+                    if notif.feed_id
+                    else None
+                )
 
                 status = "[dim]read[/dim]" if notif.is_read else "[bold yellow]NEW[/bold yellow]"
                 feed_name = feed.title if feed else "Unknown feed"
                 time_str = notif.created_date.strftime("%Y-%m-%d %H:%M")
 
                 console.print(f"{status} [{time_str}] from {feed_name}")
-                console.print(f"  [bold]{article.title[:70]}[/bold]" if article else "  [dim]Article not found[/dim]")
+                console.print(
+                    f"  [bold]{article.title[:70]}[/bold]"
+                    if article
+                    else "  [dim]Article not found[/dim]"
+                )
                 console.print(f"  [dim]ID: {notif.id} | Article: {notif.article_id}[/dim]\n")
 
-        elif args.notif_command == 'count':
-            unread = session.query(Notification).filter(Notification.is_read == False).count()
+        elif args.notif_command == "count":
+            unread = session.query(Notification).filter(Notification.is_read.is_(False)).count()
             total = session.query(Notification).count()
             console.print(f"Notifications: {unread} unread / {total} total")
 
-        elif args.notif_command == 'read':
+        elif args.notif_command == "read":
             if args.all:
-                count = session.query(Notification).filter(
-                    Notification.is_read == False
-                ).update({Notification.is_read: True, Notification.read_date: datetime.utcnow()})
+                count = (
+                    session.query(Notification)
+                    .filter(Notification.is_read.is_(False))
+                    .update({Notification.is_read: True, Notification.read_date: datetime.utcnow()})
+                )
                 session.commit()
                 console.print(f"[bold green]✓[/bold green] Marked {count} notifications as read")
             else:
-                notif = session.query(Notification).filter(Notification.id == args.notification_id).first()
+                notif = (
+                    session.query(Notification)
+                    .filter(Notification.id == args.notification_id)
+                    .first()
+                )
                 if not notif:
-                    console.print(f"[bold red]Notification {args.notification_id} not found[/bold red]")
+                    console.print(
+                        f"[bold red]Notification {args.notification_id} not found[/bold red]"
+                    )
                     return
 
                 notif.is_read = True
                 notif.read_date = datetime.utcnow()
                 session.commit()
-                console.print(f"[bold green]✓[/bold green] Marked notification {args.notification_id} as read")
+                console.print(
+                    f"[bold green]✓[/bold green] Marked notification {args.notification_id} as read"
+                )
 
-        elif args.notif_command == 'clear':
+        elif args.notif_command == "clear":
             if args.all:
                 count = session.query(Notification).delete()
             else:
-                count = session.query(Notification).filter(Notification.is_read == True).delete()
+                count = session.query(Notification).filter(Notification.is_read).delete()
 
             session.commit()
             console.print(f"[bold green]✓[/bold green] Cleared {count} notifications")
@@ -1242,231 +1282,294 @@ def main():
 
     # Create main parser
     parser = argparse.ArgumentParser(
-        prog='mindscout',
-        description='Mind Scout - Your AI research assistant'
+        prog="mindscout", description="Mind Scout - Your AI research assistant"
     )
-    parser.add_argument('--version', action='version', version='mindscout 0.2.0')
+    parser.add_argument("--version", action="version", version="mindscout 0.6.0")
 
     # Create subparsers for commands
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # fetch command
-    parser_fetch = subparsers.add_parser('fetch', help='Fetch new articles from arXiv RSS')
-    parser_fetch.add_argument('-c', '--categories', nargs='*', help='arXiv categories to fetch')
+    parser_fetch = subparsers.add_parser("fetch", help="Fetch new articles from arXiv RSS")
+    parser_fetch.add_argument("-c", "--categories", nargs="*", help="arXiv categories to fetch")
     parser_fetch.set_defaults(func=cmd_fetch)
 
     # search command (advanced arXiv API)
-    parser_search = subparsers.add_parser('search', help='Search multiple sources with advanced filters')
-    parser_search.add_argument('--source', choices=['arxiv', 'semanticscholar'], default='arxiv',
-                               help='Source to search (default: arxiv)')
-    parser_search.add_argument('-n', '--max-results', type=int, default=100, help='Maximum results (default: 100)')
+    parser_search = subparsers.add_parser(
+        "search", help="Search multiple sources with advanced filters"
+    )
+    parser_search.add_argument(
+        "--source",
+        choices=["arxiv", "semanticscholar"],
+        default="arxiv",
+        help="Source to search (default: arxiv)",
+    )
+    parser_search.add_argument(
+        "-n", "--max-results", type=int, default=100, help="Maximum results (default: 100)"
+    )
 
     # Common arguments
-    parser_search.add_argument('-q', '--query', help='Search query (required for Semantic Scholar)')
+    parser_search.add_argument("-q", "--query", help="Search query (required for Semantic Scholar)")
 
     # arXiv-specific arguments
-    parser_search.add_argument('-k', '--keywords', help='[arXiv] Keywords to search for')
-    parser_search.add_argument('-c', '--categories', nargs='*', help='[arXiv] arXiv categories to filter by')
-    parser_search.add_argument('-a', '--author', help='[arXiv] Author name to search for')
-    parser_search.add_argument('-t', '--title', help='[arXiv] Title keywords to search for')
-    parser_search.add_argument('--last-days', type=int, help='[arXiv] Fetch papers from last N days')
-    parser_search.add_argument('--from-date', help='[arXiv] Start date (YYYY-MM-DD)')
-    parser_search.add_argument('--to-date', help='[arXiv] End date (YYYY-MM-DD)')
-    parser_search.add_argument('--sort-by', choices=['submittedDate', 'lastUpdatedDate', 'relevance'],
-                               default='submittedDate', help='[arXiv] Sort field')
-    parser_search.add_argument('--sort-order', choices=['ascending', 'descending'],
-                               default='descending', help='[arXiv] Sort order')
+    parser_search.add_argument("-k", "--keywords", help="[arXiv] Keywords to search for")
+    parser_search.add_argument(
+        "-c", "--categories", nargs="*", help="[arXiv] arXiv categories to filter by"
+    )
+    parser_search.add_argument("-a", "--author", help="[arXiv] Author name to search for")
+    parser_search.add_argument("-t", "--title", help="[arXiv] Title keywords to search for")
+    parser_search.add_argument(
+        "--last-days", type=int, help="[arXiv] Fetch papers from last N days"
+    )
+    parser_search.add_argument("--from-date", help="[arXiv] Start date (YYYY-MM-DD)")
+    parser_search.add_argument("--to-date", help="[arXiv] End date (YYYY-MM-DD)")
+    parser_search.add_argument(
+        "--sort-by",
+        choices=["submittedDate", "lastUpdatedDate", "relevance"],
+        default="submittedDate",
+        help="[arXiv] Sort field",
+    )
+    parser_search.add_argument(
+        "--sort-order",
+        choices=["ascending", "descending"],
+        default="descending",
+        help="[arXiv] Sort order",
+    )
 
     # Semantic Scholar-specific arguments
-    parser_search.add_argument('--ss-sort', choices=['citationCount:desc', 'citationCount:asc',
-                                                      'publicationDate:desc', 'publicationDate:asc'],
-                               default='citationCount:desc', help='[Semantic Scholar] Sort order')
-    parser_search.add_argument('--year', help='[Semantic Scholar] Filter by year (e.g., "2024" or "2020-2024")')
-    parser_search.add_argument('--min-citations', type=int, help='[Semantic Scholar] Minimum citation count')
+    parser_search.add_argument(
+        "--ss-sort",
+        choices=[
+            "citationCount:desc",
+            "citationCount:asc",
+            "publicationDate:desc",
+            "publicationDate:asc",
+        ],
+        default="citationCount:desc",
+        help="[Semantic Scholar] Sort order",
+    )
+    parser_search.add_argument(
+        "--year", help='[Semantic Scholar] Filter by year (e.g., "2024" or "2020-2024")'
+    )
+    parser_search.add_argument(
+        "--min-citations", type=int, help="[Semantic Scholar] Minimum citation count"
+    )
 
     parser_search.set_defaults(func=cmd_search)
 
-    # fetch-semantic-scholar command (DEPRECATED - use 'search --source semanticscholar' instead)
-    parser_ss = subparsers.add_parser('fetch-semantic-scholar',
-                                       help='[DEPRECATED] Use "search --source semanticscholar" instead')
-    parser_ss.add_argument('query', help='Search query')
-    parser_ss.add_argument('-n', '--max-results', type=int, default=50, help='Maximum results (default: 50)')
-    parser_ss.add_argument('--sort', choices=['citationCount:desc', 'citationCount:asc',
-                                               'publicationDate:desc', 'publicationDate:asc'],
-                           default='citationCount:desc', help='Sort order (default: most cited)')
-    parser_ss.add_argument('--year', help='Filter by year (e.g., "2024" or "2020-2024")')
-    parser_ss.add_argument('--min-citations', type=int, help='Minimum citation count')
-    parser_ss.set_defaults(func=cmd_fetch_semantic_scholar)
-
     # list command
-    parser_list = subparsers.add_parser('list', help='List articles in the database')
-    parser_list.add_argument('-u', '--unread', action='store_true', help='Show only unread articles')
-    parser_list.add_argument('-n', '--limit', type=int, default=10, help='Number of articles to show')
-    parser_list.add_argument('-s', '--source', help='Filter by source')
+    parser_list = subparsers.add_parser("list", help="List articles in the database")
+    parser_list.add_argument(
+        "-u", "--unread", action="store_true", help="Show only unread articles"
+    )
+    parser_list.add_argument(
+        "-n", "--limit", type=int, default=10, help="Number of articles to show"
+    )
+    parser_list.add_argument("-s", "--source", help="Filter by source")
     parser_list.set_defaults(func=cmd_list)
 
     # show command
-    parser_show = subparsers.add_parser('show', help='Show details of a specific article')
-    parser_show.add_argument('article_id', type=int, help='Article ID')
+    parser_show = subparsers.add_parser("show", help="Show details of a specific article")
+    parser_show.add_argument("article_id", type=int, help="Article ID")
     parser_show.set_defaults(func=cmd_show)
 
     # read command
-    parser_read = subparsers.add_parser('read', help='Mark an article as read')
-    parser_read.add_argument('article_id', type=int, help='Article ID')
+    parser_read = subparsers.add_parser("read", help="Mark an article as read")
+    parser_read.add_argument("article_id", type=int, help="Article ID")
     parser_read.set_defaults(func=cmd_read)
 
     # unread command
-    parser_unread = subparsers.add_parser('unread', help='Mark an article as unread')
-    parser_unread.add_argument('article_id', type=int, help='Article ID')
+    parser_unread = subparsers.add_parser("unread", help="Mark an article as unread")
+    parser_unread.add_argument("article_id", type=int, help="Article ID")
     parser_unread.set_defaults(func=cmd_unread)
 
     # stats command
-    parser_stats = subparsers.add_parser('stats', help='Show statistics')
+    parser_stats = subparsers.add_parser("stats", help="Show statistics")
     parser_stats.set_defaults(func=cmd_stats)
 
     # process command
-    parser_process = subparsers.add_parser('process', help='Process articles with LLM')
-    parser_process.add_argument('-n', '--limit', type=int, help='Maximum number of articles to process')
-    parser_process.add_argument('-f', '--force', action='store_true', help='Reprocess already processed articles')
+    parser_process = subparsers.add_parser("process", help="Process articles with LLM")
+    parser_process.add_argument(
+        "-n", "--limit", type=int, help="Maximum number of articles to process"
+    )
+    parser_process.add_argument(
+        "-f", "--force", action="store_true", help="Reprocess already processed articles"
+    )
     parser_process.set_defaults(func=cmd_process)
 
     # topics command
-    parser_topics = subparsers.add_parser('topics', help='Show discovered topics')
+    parser_topics = subparsers.add_parser("topics", help="Show discovered topics")
     parser_topics.set_defaults(func=cmd_topics)
 
     # find-by-topic command
-    parser_find = subparsers.add_parser('find-by-topic', help='Find articles by topic')
-    parser_find.add_argument('topic', help='Topic to search for')
-    parser_find.add_argument('-n', '--limit', type=int, default=10, help='Number of results')
+    parser_find = subparsers.add_parser("find-by-topic", help="Find articles by topic")
+    parser_find.add_argument("topic", help="Topic to search for")
+    parser_find.add_argument("-n", "--limit", type=int, default=10, help="Number of results")
     parser_find.set_defaults(func=cmd_find_by_topic)
 
     # processing-stats command
-    parser_pstats = subparsers.add_parser('processing-stats', help='Show processing statistics')
+    parser_pstats = subparsers.add_parser("processing-stats", help="Show processing statistics")
     parser_pstats.set_defaults(func=cmd_processing_stats)
 
     # clear command
-    parser_clear = subparsers.add_parser('clear', help='Clear all data (database + vector store)')
-    parser_clear.add_argument('-f', '--force', action='store_true', help='Skip confirmation prompt')
+    parser_clear = subparsers.add_parser("clear", help="Clear all data (database + vector store)")
+    parser_clear.add_argument("-f", "--force", action="store_true", help="Skip confirmation prompt")
     parser_clear.set_defaults(func=cmd_clear)
 
     # profile command (Phase 4)
-    parser_profile = subparsers.add_parser('profile', help='Manage your user profile')
-    profile_subparsers = parser_profile.add_subparsers(dest='profile_command', required=True)
+    parser_profile = subparsers.add_parser("profile", help="Manage your user profile")
+    profile_subparsers = parser_profile.add_subparsers(dest="profile_command", required=True)
 
     # profile show
-    profile_show = profile_subparsers.add_parser('show', help='Show your profile')
+    profile_subparsers.add_parser("show", help="Show your profile")
 
     # profile set-interests
-    profile_set_int = profile_subparsers.add_parser('set-interests', help='Set your interests (replaces existing)')
-    profile_set_int.add_argument('interests', help='Comma-separated list of topics (e.g., "transformers, RL, NLP")')
+    profile_set_int = profile_subparsers.add_parser(
+        "set-interests", help="Set your interests (replaces existing)"
+    )
+    profile_set_int.add_argument(
+        "interests", help='Comma-separated list of topics (e.g., "transformers, RL, NLP")'
+    )
 
     # profile add-interests
-    profile_add_int = profile_subparsers.add_parser('add-interests', help='Add interests (keeps existing)')
-    profile_add_int.add_argument('interests', help='Comma-separated list of topics to add')
+    profile_add_int = profile_subparsers.add_parser(
+        "add-interests", help="Add interests (keeps existing)"
+    )
+    profile_add_int.add_argument("interests", help="Comma-separated list of topics to add")
 
     # profile set-skill
-    profile_set_skill = profile_subparsers.add_parser('set-skill', help='Set your skill level')
-    profile_set_skill.add_argument('level', choices=['beginner', 'intermediate', 'advanced'], help='Skill level')
+    profile_set_skill = profile_subparsers.add_parser("set-skill", help="Set your skill level")
+    profile_set_skill.add_argument(
+        "level", choices=["beginner", "intermediate", "advanced"], help="Skill level"
+    )
 
     # profile set-sources
-    profile_set_src = profile_subparsers.add_parser('set-sources', help='Set preferred sources')
-    profile_set_src.add_argument('sources', help='Comma-separated list (e.g., "arxiv,semanticscholar")')
+    profile_set_src = profile_subparsers.add_parser("set-sources", help="Set preferred sources")
+    profile_set_src.add_argument(
+        "sources", help='Comma-separated list (e.g., "arxiv,semanticscholar")'
+    )
 
     # profile set-goal
-    profile_set_goal = profile_subparsers.add_parser('set-goal', help='Set daily reading goal')
-    profile_set_goal.add_argument('goal', type=int, help='Number of papers to read per day')
+    profile_set_goal = profile_subparsers.add_parser("set-goal", help="Set daily reading goal")
+    profile_set_goal.add_argument("goal", type=int, help="Number of papers to read per day")
 
     parser_profile.set_defaults(func=cmd_profile)
 
     # rate command (Phase 4)
-    parser_rate = subparsers.add_parser('rate', help='Rate an article (1-5 stars)')
-    parser_rate.add_argument('article_id', type=int, help='Article ID')
-    parser_rate.add_argument('rating', type=int, help='Rating (1-5 stars)')
+    parser_rate = subparsers.add_parser("rate", help="Rate an article (1-5 stars)")
+    parser_rate.add_argument("article_id", type=int, help="Article ID")
+    parser_rate.add_argument("rating", type=int, help="Rating (1-5 stars)")
     parser_rate.set_defaults(func=cmd_rate)
 
     # recommend command (Phase 4)
-    parser_rec = subparsers.add_parser('recommend', help='Get personalized recommendations')
-    parser_rec.add_argument('-n', '--limit', type=int, default=10, help='Number of recommendations (default: 10)')
-    parser_rec.add_argument('-d', '--days', type=int, default=30, help='Look back N days (default: 30)')
-    parser_rec.add_argument('--include-read', action='store_true', help='Include already-read articles')
-    parser_rec.add_argument('--explain', action='store_true', help='Show detailed explanation for top recommendation')
+    parser_rec = subparsers.add_parser("recommend", help="Get personalized recommendations")
+    parser_rec.add_argument(
+        "-n", "--limit", type=int, default=10, help="Number of recommendations (default: 10)"
+    )
+    parser_rec.add_argument(
+        "-d", "--days", type=int, default=30, help="Look back N days (default: 30)"
+    )
+    parser_rec.add_argument(
+        "--include-read", action="store_true", help="Include already-read articles"
+    )
+    parser_rec.add_argument(
+        "--explain", action="store_true", help="Show detailed explanation for top recommendation"
+    )
     parser_rec.set_defaults(func=cmd_recommend)
 
     # insights command (Phase 4)
-    parser_insights = subparsers.add_parser('insights', help='Show reading insights and analytics')
+    parser_insights = subparsers.add_parser("insights", help="Show reading insights and analytics")
     parser_insights.set_defaults(func=cmd_insights)
 
     # index command (Phase 5)
-    parser_index = subparsers.add_parser('index', help='Index articles for semantic search')
-    parser_index.add_argument('-n', '--limit', type=int, help='Maximum number of articles to index')
-    parser_index.add_argument('-f', '--force', action='store_true', help='Re-index all articles')
+    parser_index = subparsers.add_parser("index", help="Index articles for semantic search")
+    parser_index.add_argument("-n", "--limit", type=int, help="Maximum number of articles to index")
+    parser_index.add_argument("-f", "--force", action="store_true", help="Re-index all articles")
     parser_index.set_defaults(func=cmd_index)
 
     # similar command (Phase 5)
-    parser_similar = subparsers.add_parser('similar', help='Find similar articles')
-    parser_similar.add_argument('article_id', type=int, help='Article ID to find similar papers for')
-    parser_similar.add_argument('-n', '--limit', type=int, default=10, help='Number of results (default: 10)')
-    parser_similar.add_argument('--min-similarity', type=float, default=0.3, help='Minimum similarity score (0-1)')
+    parser_similar = subparsers.add_parser("similar", help="Find similar articles")
+    parser_similar.add_argument(
+        "article_id", type=int, help="Article ID to find similar papers for"
+    )
+    parser_similar.add_argument(
+        "-n", "--limit", type=int, default=10, help="Number of results (default: 10)"
+    )
+    parser_similar.add_argument(
+        "--min-similarity", type=float, default=0.3, help="Minimum similarity score (0-1)"
+    )
     parser_similar.set_defaults(func=cmd_similar)
 
     # semantic-search command (Phase 5)
-    parser_semantic = subparsers.add_parser('semantic-search', help='Semantic search for articles')
-    parser_semantic.add_argument('query', help='Natural language search query')
-    parser_semantic.add_argument('-n', '--limit', type=int, default=10, help='Number of results (default: 10)')
+    parser_semantic = subparsers.add_parser("semantic-search", help="Semantic search for articles")
+    parser_semantic.add_argument("query", help="Natural language search query")
+    parser_semantic.add_argument(
+        "-n", "--limit", type=int, default=10, help="Number of results (default: 10)"
+    )
     parser_semantic.set_defaults(func=cmd_semantic_search)
 
     # subscribe command (RSS subscriptions)
-    parser_sub = subparsers.add_parser('subscribe', help='Manage RSS feed subscriptions')
-    sub_subparsers = parser_sub.add_subparsers(dest='sub_command', required=True)
+    parser_sub = subparsers.add_parser("subscribe", help="Manage RSS feed subscriptions")
+    sub_subparsers = parser_sub.add_subparsers(dest="sub_command", required=True)
 
     # subscribe list
-    sub_list = sub_subparsers.add_parser('list', help='List all subscriptions')
+    sub_subparsers.add_parser("list", help="List all subscriptions")
 
     # subscribe add
-    sub_add = sub_subparsers.add_parser('add', help='Subscribe to an RSS feed')
-    sub_add.add_argument('url', help='RSS feed URL')
-    sub_add.add_argument('-t', '--title', help='Custom title for the feed')
-    sub_add.add_argument('-c', '--category', help='Category (tech_blog, news, podcast, newsletter, papers)')
+    sub_add = sub_subparsers.add_parser("add", help="Subscribe to an RSS feed")
+    sub_add.add_argument("url", help="RSS feed URL")
+    sub_add.add_argument("-t", "--title", help="Custom title for the feed")
+    sub_add.add_argument(
+        "-c", "--category", help="Category (tech_blog, news, podcast, newsletter, papers)"
+    )
 
     # subscribe remove
-    sub_remove = sub_subparsers.add_parser('remove', help='Unsubscribe from a feed')
-    sub_remove.add_argument('feed_id', type=int, help='Subscription ID')
+    sub_remove = sub_subparsers.add_parser("remove", help="Unsubscribe from a feed")
+    sub_remove.add_argument("feed_id", type=int, help="Subscription ID")
 
     # subscribe curated
-    sub_curated = sub_subparsers.add_parser('curated', help='Browse suggested feeds')
+    sub_subparsers.add_parser("curated", help="Browse suggested feeds")
 
     # subscribe refresh
-    sub_refresh = sub_subparsers.add_parser('refresh', help='Check subscriptions for new articles')
-    sub_refresh.add_argument('feed_id', type=int, nargs='?', help='Specific subscription ID (optional)')
+    sub_refresh = sub_subparsers.add_parser("refresh", help="Check subscriptions for new articles")
+    sub_refresh.add_argument(
+        "feed_id", type=int, nargs="?", help="Specific subscription ID (optional)"
+    )
 
     parser_sub.set_defaults(func=cmd_subscribe)
 
     # evaluate command (Phoenix Evals)
-    parser_eval = subparsers.add_parser('evaluate', help='Evaluate processed articles with Phoenix Evals')
-    parser_eval.add_argument('-n', '--limit', type=int, default=10, help='Number of articles to evaluate (default: 10)')
-    parser_eval.add_argument('-v', '--verbose', action='store_true', help='Show evaluation explanations')
+    parser_eval = subparsers.add_parser(
+        "evaluate", help="Evaluate processed articles with Phoenix Evals"
+    )
+    parser_eval.add_argument(
+        "-n", "--limit", type=int, default=10, help="Number of articles to evaluate (default: 10)"
+    )
+    parser_eval.add_argument(
+        "-v", "--verbose", action="store_true", help="Show evaluation explanations"
+    )
     parser_eval.set_defaults(func=cmd_evaluate)
 
     # notifications command
-    parser_notif = subparsers.add_parser('notifications', help='Manage notifications')
-    notif_subparsers = parser_notif.add_subparsers(dest='notif_command', required=True)
+    parser_notif = subparsers.add_parser("notifications", help="Manage notifications")
+    notif_subparsers = parser_notif.add_subparsers(dest="notif_command", required=True)
 
     # notifications list
-    notif_list = notif_subparsers.add_parser('list', help='List notifications')
-    notif_list.add_argument('-u', '--unread', action='store_true', help='Show only unread')
-    notif_list.add_argument('-n', '--limit', type=int, default=20, help='Max notifications to show')
+    notif_list = notif_subparsers.add_parser("list", help="List notifications")
+    notif_list.add_argument("-u", "--unread", action="store_true", help="Show only unread")
+    notif_list.add_argument("-n", "--limit", type=int, default=20, help="Max notifications to show")
 
     # notifications count
-    notif_count = notif_subparsers.add_parser('count', help='Show notification count')
+    notif_subparsers.add_parser("count", help="Show notification count")
 
     # notifications read
-    notif_read = notif_subparsers.add_parser('read', help='Mark notification(s) as read')
-    notif_read.add_argument('notification_id', type=int, nargs='?', help='Notification ID')
-    notif_read.add_argument('-a', '--all', action='store_true', help='Mark all as read')
+    notif_read = notif_subparsers.add_parser("read", help="Mark notification(s) as read")
+    notif_read.add_argument("notification_id", type=int, nargs="?", help="Notification ID")
+    notif_read.add_argument("-a", "--all", action="store_true", help="Mark all as read")
 
     # notifications clear
-    notif_clear = notif_subparsers.add_parser('clear', help='Clear notifications')
-    notif_clear.add_argument('-a', '--all', action='store_true', help='Clear all (not just read)')
+    notif_clear = notif_subparsers.add_parser("clear", help="Clear notifications")
+    notif_clear.add_argument("-a", "--all", action="store_true", help="Clear all (not just read)")
 
     parser_notif.set_defaults(func=cmd_notifications)
 
@@ -1474,7 +1577,7 @@ def main():
     args = parser.parse_args()
 
     # Execute command
-    if hasattr(args, 'func'):
+    if hasattr(args, "func"):
         args.func(args)
     else:
         parser.print_help()

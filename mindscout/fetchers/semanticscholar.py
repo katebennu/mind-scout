@@ -3,7 +3,8 @@
 import logging
 import time
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import Optional
+
 import requests
 
 from mindscout.fetchers.base import BaseFetcher
@@ -13,11 +14,13 @@ logger = logging.getLogger(__name__)
 
 class SemanticScholarAPIError(Exception):
     """Exception raised for Semantic Scholar API errors."""
+
     pass
 
 
 class SemanticScholarRateLimitError(SemanticScholarAPIError):
     """Exception raised when Semantic Scholar rate limit is exceeded."""
+
     pass
 
 
@@ -31,20 +34,20 @@ class SemanticScholarFetcher(BaseFetcher):
         super().__init__("semanticscholar")
         self.session = requests.Session()
         # Add headers for better rate limiting
-        self.session.headers.update({
-            "User-Agent": "MindScout/0.2 (Research Assistant; mailto:user@example.com)"
-        })
+        self.session.headers.update(
+            {"User-Agent": "MindScout/0.2 (Research Assistant; mailto:user@example.com)"}
+        )
 
     def fetch(
         self,
         query: str,
-        fields: Optional[List[str]] = None,
+        fields: Optional[list[str]] = None,
         limit: int = 100,
         sort: str = "citationCount:desc",
         year: Optional[str] = None,
-        venue: Optional[List[str]] = None,
+        venue: Optional[list[str]] = None,
         min_citations: Optional[int] = None,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Fetch papers from Semantic Scholar.
 
         Args:
@@ -103,9 +106,7 @@ class SemanticScholarFetcher(BaseFetcher):
             for retry in range(max_retries):
                 try:
                     response = self.session.get(
-                        f"{self.BASE_URL}/paper/search",
-                        params=params,
-                        timeout=30
+                        f"{self.BASE_URL}/paper/search", params=params, timeout=30
                     )
                     response.raise_for_status()
                     data = response.json()
@@ -135,7 +136,7 @@ class SemanticScholarFetcher(BaseFetcher):
                     if e.response.status_code == 429:
                         # Rate limit hit
                         if retry < max_retries - 1:
-                            wait_time = retry_delay * (2 ** retry)  # Exponential backoff
+                            wait_time = retry_delay * (2**retry)  # Exponential backoff
                             logger.warning(
                                 f"Semantic Scholar rate limit hit. Waiting {wait_time}s "
                                 f"before retry {retry + 1}/{max_retries}"
@@ -165,7 +166,7 @@ class SemanticScholarFetcher(BaseFetcher):
 
         return articles[:limit]
 
-    def _parse_paper(self, paper: Dict) -> Optional[Dict]:
+    def _parse_paper(self, paper: dict) -> Optional[dict]:
         """Parse a paper from Semantic Scholar API response.
 
         Args:
@@ -214,7 +215,7 @@ class SemanticScholarFetcher(BaseFetcher):
             url = paper.get("url", f"https://www.semanticscholar.org/paper/{paper_id}")
 
             # Get venue/conference
-            venue = paper.get("venue", "")
+            paper.get("venue", "")
 
             # Get fields of study (as categories)
             fields_of_study = paper.get("fieldsOfStudy", [])
@@ -245,7 +246,7 @@ class SemanticScholarFetcher(BaseFetcher):
             logger.warning(f"Error parsing paper: {e}")
             return None
 
-    def get_paper_by_arxiv_id(self, arxiv_id: str) -> Optional[Dict]:
+    def get_paper_by_arxiv_id(self, arxiv_id: str) -> Optional[dict]:
         """Get paper details by arXiv ID to enrich existing papers.
 
         Args:
@@ -258,7 +259,7 @@ class SemanticScholarFetcher(BaseFetcher):
             response = self.session.get(
                 f"{self.BASE_URL}/paper/arXiv:{arxiv_id}",
                 params={"fields": "paperId,citationCount,influentialCitationCount"},
-                timeout=10
+                timeout=10,
             )
             response.raise_for_status()
             paper = response.json()
@@ -275,7 +276,7 @@ class SemanticScholarFetcher(BaseFetcher):
 
         return None
 
-    def save_to_db(self, articles: List[Dict]) -> int:
+    def save_to_db(self, articles: list[dict]) -> int:
         """Save articles to database (alias for store_articles).
 
         Args:
@@ -288,7 +289,7 @@ class SemanticScholarFetcher(BaseFetcher):
 
     def close(self):
         """Close the requests session."""
-        if hasattr(self, 'session'):
+        if hasattr(self, "session"):
             self.session.close()
 
 
@@ -301,17 +302,19 @@ def enrich_arxiv_papers_with_citations(limit: int = 100) -> int:
     Returns:
         Number of papers updated
     """
-    from mindscout.database import get_db_session, Article
+    from mindscout.database import Article, get_db_session
 
     fetcher = SemanticScholarFetcher()
     updated = 0
 
     with get_db_session() as session:
         # Get arXiv papers without citation data
-        papers = session.query(Article).filter(
-            Article.source == "arxiv",
-            Article.citation_count == None  # noqa: E711
-        ).limit(limit).all()
+        papers = (
+            session.query(Article)
+            .filter(Article.source == "arxiv", Article.citation_count == None)  # noqa: E711
+            .limit(limit)
+            .all()
+        )
 
         for paper in papers:
             # Extract arXiv ID from source_id

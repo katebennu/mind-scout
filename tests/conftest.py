@@ -23,16 +23,18 @@ def isolated_test_db(tmp_path, monkeypatch):
 
     # Patch the config module
     from mindscout import config
+
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
     monkeypatch.setattr(config, "DB_PATH", tmp_path / "mindscout.db")
 
     # Re-initialize the database module with the new path
-    from mindscout import database
     from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.orm import sessionmaker
 
-    test_db_path = tmp_path / 'mindscout.db'
+    from mindscout import database
+
+    test_db_path = tmp_path / "mindscout.db"
 
     # Create a new sync engine pointing to the test database
     test_engine = create_engine(f"sqlite:///{test_db_path}")
@@ -66,6 +68,7 @@ def isolated_test_db(tmp_path, monkeypatch):
 def db_session(isolated_test_db):
     """Get a database session for the isolated test database."""
     from mindscout.database import get_session
+
     session = get_session()
     yield session
     session.close()

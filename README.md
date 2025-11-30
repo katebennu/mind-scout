@@ -117,7 +117,7 @@ Use Mind Scout directly from Claude Desktop using natural language:
   "mcpServers": {
     "mindscout": {
       "command": "python",
-      "args": ["/absolute/path/to/agento/mcp-server/server.py"]
+      "args": ["/absolute/path/to/mind-scout/mcp-server/server.py"]
     }
   }
 }

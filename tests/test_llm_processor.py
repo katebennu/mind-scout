@@ -1,7 +1,8 @@
 """Tests for LLM processor."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 class TestLLMClientInit:
@@ -171,9 +172,7 @@ class TestLLMClientExtractTopics:
         """Test that topics are limited to max_topics."""
         with patch("mindscout.processors.llm.Anthropic") as mock_anthropic:
             mock_response = MagicMock()
-            mock_response.content = [
-                MagicMock(text="one, two, three, four, five, six, seven")
-            ]
+            mock_response.content = [MagicMock(text="one, two, three, four, five, six, seven")]
             mock_anthropic.return_value.messages.create.return_value = mock_response
 
             from mindscout.processors.llm import LLMClient
@@ -239,9 +238,7 @@ class TestLLMClientExtractTopicsBatch:
         """Test successful batch topic extraction."""
         with patch("mindscout.processors.llm.Anthropic") as mock_anthropic:
             mock_response = MagicMock()
-            mock_response.content = [
-                MagicMock(text='{"1": ["topic1", "topic2"], "2": ["topic3"]}')
-            ]
+            mock_response.content = [MagicMock(text='{"1": ["topic1", "topic2"], "2": ["topic3"]}')]
             mock_anthropic.return_value.messages.create.return_value = mock_response
 
             from mindscout.processors.llm import LLMClient
@@ -262,9 +259,7 @@ class TestLLMClientExtractTopicsBatch:
         """Test that markdown code blocks are stripped."""
         with patch("mindscout.processors.llm.Anthropic") as mock_anthropic:
             mock_response = MagicMock()
-            mock_response.content = [
-                MagicMock(text='```json\n{"1": ["topic1"]}\n```')
-            ]
+            mock_response.content = [MagicMock(text='```json\n{"1": ["topic1"]}\n```')]
             mock_anthropic.return_value.messages.create.return_value = mock_response
 
             from mindscout.processors.llm import LLMClient

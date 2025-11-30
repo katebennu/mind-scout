@@ -21,7 +21,7 @@ def start_scheduler():
         logger.info("Scheduler is disabled via configuration")
         return
 
-    from backend.scheduler.jobs import fetch_and_process_job, check_pending_batches_job
+    from backend.scheduler.jobs import check_pending_batches_job, fetch_and_process_job
 
     # Run daily at configured time - fetches articles and creates async batch
     scheduler.add_job(

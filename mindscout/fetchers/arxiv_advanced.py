@@ -2,10 +2,10 @@
 
 import logging
 import time
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional
-import urllib.parse
 import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
+from typing import Optional
+
 import requests
 
 from mindscout.database import Article, get_db_session
@@ -15,11 +15,13 @@ logger = logging.getLogger(__name__)
 
 class ArxivAPIError(Exception):
     """Exception raised for arXiv API errors."""
+
     pass
 
 
 class ArxivRateLimitError(ArxivAPIError):
     """Exception raised when arXiv rate limit is exceeded."""
+
     pass
 
 
@@ -35,7 +37,7 @@ class ArxivAdvancedFetcher:
     def build_query(
         self,
         keywords: Optional[str] = None,
-        categories: Optional[List[str]] = None,
+        categories: Optional[list[str]] = None,
         author: Optional[str] = None,
         title: Optional[str] = None,
         from_date: Optional[datetime] = None,
@@ -77,7 +79,9 @@ class ArxivAdvancedFetcher:
         # Add date range if specified
         if from_date or to_date:
             from_str = from_date.strftime("%Y%m%d0000") if from_date else "19910101000"
-            to_str = to_date.strftime("%Y%m%d2359") if to_date else datetime.now().strftime("%Y%m%d2359")
+            to_str = (
+                to_date.strftime("%Y%m%d2359") if to_date else datetime.now().strftime("%Y%m%d2359")
+            )
             query += f"+AND+submittedDate:[{from_str}+TO+{to_str}]"
 
         return query
@@ -85,7 +89,7 @@ class ArxivAdvancedFetcher:
     def search(
         self,
         keywords: Optional[str] = None,
-        categories: Optional[List[str]] = None,
+        categories: Optional[list[str]] = None,
         author: Optional[str] = None,
         title: Optional[str] = None,
         from_date: Optional[datetime] = None,
@@ -93,7 +97,7 @@ class ArxivAdvancedFetcher:
         max_results: int = 100,
         sort_by: str = "submittedDate",
         sort_order: str = "descending",
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Search arXiv using the API.
 
         Args:
@@ -141,7 +145,7 @@ class ArxivAdvancedFetcher:
                 if e.response.status_code == 429:
                     # Rate limit hit
                     if retry < max_retries - 1:
-                        wait_time = retry_delay * (2 ** retry)  # Exponential backoff
+                        wait_time = retry_delay * (2**retry)  # Exponential backoff
                         logger.warning(
                             f"arXiv rate limit hit. Waiting {wait_time}s before retry "
                             f"{retry + 1}/{max_retries}"
@@ -167,7 +171,7 @@ class ArxivAdvancedFetcher:
 
         return []
 
-    def _parse_feed(self, xml_text: str) -> List[Dict]:
+    def _parse_feed(self, xml_text: str) -> list[dict]:
         """Parse arXiv API XML response.
 
         Args:
@@ -243,7 +247,7 @@ class ArxivAdvancedFetcher:
     def fetch_and_store(
         self,
         keywords: Optional[str] = None,
-        categories: Optional[List[str]] = None,
+        categories: Optional[list[str]] = None,
         author: Optional[str] = None,
         title: Optional[str] = None,
         from_date: Optional[datetime] = None,
@@ -290,9 +294,9 @@ class ArxivAdvancedFetcher:
         with get_db_session() as session:
             for article_data in articles:
                 # Check if already exists
-                existing = session.query(Article).filter_by(
-                    source_id=article_data["source_id"]
-                ).first()
+                existing = (
+                    session.query(Article).filter_by(source_id=article_data["source_id"]).first()
+                )
 
                 if existing:
                     continue
@@ -306,7 +310,7 @@ class ArxivAdvancedFetcher:
         return new_count
 
 
-def fetch_last_month(categories: Optional[List[str]] = None, max_results: int = 100) -> int:
+def fetch_last_month(categories: Optional[list[str]] = None, max_results: int = 100) -> int:
     """Convenience function to fetch papers from the last month.
 
     Args:
@@ -333,7 +337,9 @@ def fetch_last_month(categories: Optional[List[str]] = None, max_results: int = 
     )
 
 
-def fetch_by_keyword(keyword: str, max_results: int = 50, categories: Optional[List[str]] = None) -> int:
+def fetch_by_keyword(
+    keyword: str, max_results: int = 50, categories: Optional[list[str]] = None
+) -> int:
     """Fetch papers matching a keyword.
 
     Args:

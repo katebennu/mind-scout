@@ -1,10 +1,11 @@
 """Tests for scheduler jobs and batch processing."""
 
-import pytest
 from datetime import datetime
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from mindscout.database import get_session, get_db_session, Article, PendingBatch
+import pytest
+
+from mindscout.database import Article, PendingBatch, get_db_session, get_session
 
 
 @pytest.fixture
@@ -83,7 +84,7 @@ class TestPendingBatchModel:
             batch1 = PendingBatch(batch_id="msgbatch_dup", article_count=1)
             session.add(batch1)
 
-        with pytest.raises(Exception):  # IntegrityError
+        with pytest.raises(Exception):  # noqa: B017 - IntegrityError
             with get_db_session() as session:
                 batch2 = PendingBatch(batch_id="msgbatch_dup", article_count=2)
                 session.add(batch2)
@@ -93,7 +94,9 @@ class TestFetchAndProcessJob:
     """Test the daily fetch and process job."""
 
     @pytest.mark.asyncio
-    async def test_fetch_and_process_creates_batch(self, isolated_test_db, sample_unprocessed_articles):
+    async def test_fetch_and_process_creates_batch(
+        self, isolated_test_db, sample_unprocessed_articles
+    ):
         """Test that job creates an async batch for unprocessed articles."""
         from backend.scheduler.jobs import fetch_and_process_job
 
@@ -104,7 +107,9 @@ class TestFetchAndProcessJob:
         mock_processor.create_async_batch.return_value = mock_batch_id
 
         with patch("backend.scheduler.jobs.get_user_interests", return_value=[]):
-            with patch("mindscout.processors.content.ContentProcessor", return_value=mock_processor):
+            with patch(
+                "mindscout.processors.content.ContentProcessor", return_value=mock_processor
+            ):
                 result = await fetch_and_process_job()
 
         assert result["batch_id"] == mock_batch_id
@@ -132,7 +137,9 @@ class TestCheckPendingBatchesJob:
     """Test the batch checking job."""
 
     @pytest.mark.asyncio
-    async def test_check_pending_batches_completes_batch(self, isolated_test_db, sample_unprocessed_articles):
+    async def test_check_pending_batches_completes_batch(
+        self, isolated_test_db, sample_unprocessed_articles
+    ):
         """Test that completed batches are processed."""
         from backend.scheduler.jobs import check_pending_batches_job
 
@@ -156,7 +163,9 @@ class TestCheckPendingBatchesJob:
         mock_processor.apply_batch_results.return_value = (5, 0)
 
         with patch("mindscout.processors.llm.LLMClient", return_value=mock_llm):
-            with patch("mindscout.processors.content.ContentProcessor", return_value=mock_processor):
+            with patch(
+                "mindscout.processors.content.ContentProcessor", return_value=mock_processor
+            ):
                 result = await check_pending_batches_job()
 
         assert result["checked"] == 1

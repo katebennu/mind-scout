@@ -142,6 +142,7 @@ Topics:"""
         # For now, we'll use a simple hash-based approach
         # In Phase 5, we'll integrate a proper embedding model (Voyage AI, OpenAI, etc.)
         import hashlib
+
         import numpy as np
 
         # Simple hash-based embedding (768 dimensions)
@@ -224,9 +225,7 @@ JSON response:"""
             # Fall back to empty dict - caller should handle gracefully
             return {}
 
-    def create_topic_extraction_batch(
-        self, articles: list[dict], max_topics: int = 5
-    ) -> str:
+    def create_topic_extraction_batch(self, articles: list[dict], max_topics: int = 5) -> str:
         """Create an async batch for topic extraction (50% cheaper).
 
         Uses Anthropic's Message Batches API for cost-effective processing.
@@ -258,16 +257,18 @@ Abstract: {article.get('abstract', '')}
 
 Topics:"""
 
-            requests.append({
-                "custom_id": str(article["id"]),
-                "params": {
-                    "model": self.model,
-                    "max_tokens": 200,
-                    "temperature": 0.3,
-                    "system": system,
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-            })
+            requests.append(
+                {
+                    "custom_id": str(article["id"]),
+                    "params": {
+                        "model": self.model,
+                        "max_tokens": 200,
+                        "temperature": 0.3,
+                        "system": system,
+                        "messages": [{"role": "user", "content": prompt}],
+                    },
+                }
+            )
 
         batch = self.client.messages.batches.create(requests=requests)
         logger.info(f"Created batch {batch.id} with {len(requests)} requests")

@@ -1,16 +1,17 @@
 """Tests for profile API endpoints."""
 
 import sys
+from datetime import datetime
 from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
-from datetime import datetime
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.main import app
-from mindscout.database import get_session, Article, UserProfile
+from mindscout.database import Article, UserProfile, get_session
 
 
 @pytest.fixture
@@ -39,7 +40,7 @@ def sample_profile(tmp_path, monkeypatch):
         interests="machine learning,computer vision",
         skill_level="advanced",
         preferred_sources="arxiv,semanticscholar",
-        daily_reading_goal=10
+        daily_reading_goal=10,
     )
     session.add(profile)
     session.commit()
@@ -57,11 +58,7 @@ def sample_articles_for_stats(tmp_path, monkeypatch):
     session = get_session()
 
     # Create profile (interests stored as comma-separated string)
-    profile = UserProfile(
-        interests="ai",
-        skill_level="intermediate",
-        daily_reading_goal=5
-    )
+    profile = UserProfile(interests="ai", skill_level="intermediate", daily_reading_goal=5)
     session.add(profile)
 
     # Create articles with different read/rating states
@@ -73,7 +70,7 @@ def sample_articles_for_stats(tmp_path, monkeypatch):
             source="arxiv",
             fetched_date=datetime.now(),
             is_read=True,
-            rating=5
+            rating=5,
         ),
         Article(
             source_id="test-prof-2",
@@ -82,7 +79,7 @@ def sample_articles_for_stats(tmp_path, monkeypatch):
             source="arxiv",
             fetched_date=datetime.now(),
             is_read=True,
-            rating=4
+            rating=4,
         ),
         Article(
             source_id="test-prof-3",
@@ -90,7 +87,7 @@ def sample_articles_for_stats(tmp_path, monkeypatch):
             url="https://example.com/3",
             source="semanticscholar",
             fetched_date=datetime.now(),
-            is_read=False
+            is_read=False,
         ),
         Article(
             source_id="test-prof-4",
@@ -98,7 +95,7 @@ def sample_articles_for_stats(tmp_path, monkeypatch):
             url="https://example.com/4",
             source="semanticscholar",
             fetched_date=datetime.now(),
-            is_read=False
+            is_read=False,
         ),
         Article(
             source_id="test-prof-5",
@@ -106,8 +103,8 @@ def sample_articles_for_stats(tmp_path, monkeypatch):
             url="https://example.com/5",
             source="arxiv",
             fetched_date=datetime.now(),
-            is_read=True
-        )
+            is_read=True,
+        ),
     ]
 
     for article in articles:
@@ -154,7 +151,7 @@ class TestUpdateProfile:
             "interests": ["nlp", "transformers", "llm"],
             "skill_level": "advanced",
             "preferred_sources": ["arxiv"],
-            "daily_reading_goal": 15
+            "daily_reading_goal": 15,
         }
 
         response = client.put("/api/profile", json=profile_data)
@@ -172,7 +169,7 @@ class TestUpdateProfile:
             "interests": ["deep learning"],
             "skill_level": "advanced",
             "preferred_sources": ["arxiv", "semanticscholar"],
-            "daily_reading_goal": 10
+            "daily_reading_goal": 10,
         }
 
         response = client.put("/api/profile", json=update_data)
@@ -190,7 +187,7 @@ class TestUpdateProfile:
             "interests": ["new interest"],
             "skill_level": "advanced",
             "preferred_sources": ["arxiv", "semanticscholar"],
-            "daily_reading_goal": 10
+            "daily_reading_goal": 10,
         }
 
         response = client.put("/api/profile", json=update_data)
@@ -205,7 +202,7 @@ class TestUpdateProfile:
             "interests": ["ai"],
             "skill_level": "invalid_level",
             "preferred_sources": ["arxiv"],
-            "daily_reading_goal": 5
+            "daily_reading_goal": 5,
         }
 
         # API raises ValueError for invalid skill level
@@ -245,11 +242,7 @@ class TestGetProfileStats:
         """Test getting statistics with no articles."""
         # Create empty profile
         session = get_session()
-        profile = UserProfile(
-            interests="ai",
-            skill_level="beginner",
-            daily_reading_goal=5
-        )
+        profile = UserProfile(interests="ai", skill_level="beginner", daily_reading_goal=5)
         session.add(profile)
         session.commit()
         session.close()
@@ -318,11 +311,7 @@ class TestGetProfileInsights:
         """Test getting insights with no articles."""
         # Create empty profile
         session = get_session()
-        profile = UserProfile(
-            interests="ai",
-            skill_level="beginner",
-            daily_reading_goal=5
-        )
+        profile = UserProfile(interests="ai", skill_level="beginner", daily_reading_goal=5)
         session.add(profile)
         session.commit()
         session.close()

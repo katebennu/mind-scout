@@ -1,16 +1,17 @@
 """Tests for search API endpoints."""
 
 import sys
+from datetime import datetime
 from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
-from datetime import datetime
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.main import app
-from mindscout.database import get_session, Article
+from mindscout.database import Article, get_session
 from mindscout.vectorstore import VectorStore
 
 
@@ -39,7 +40,7 @@ def sample_articles_with_embeddings(isolated_test_db):
             categories="cs.CL",
             is_read=False,
             citation_count=100,
-            has_implementation=True
+            has_implementation=True,
         ),
         Article(
             source_id="test-search-2",
@@ -52,7 +53,7 @@ def sample_articles_with_embeddings(isolated_test_db):
             fetched_date=datetime(2024, 2, 15),
             categories="cs.RO",
             is_read=False,
-            citation_count=50
+            citation_count=50,
         ),
         Article(
             source_id="test-search-3",
@@ -65,8 +66,8 @@ def sample_articles_with_embeddings(isolated_test_db):
             fetched_date=datetime(2024, 3, 10),
             categories="cs.CV",
             is_read=False,
-            citation_count=75
-        )
+            citation_count=75,
+        ),
     ]
 
     for article in articles:
@@ -122,8 +123,10 @@ class TestSemanticSearch:
 
         # The transformer paper should be most relevant
         top_result = data[0]
-        assert "transformer" in top_result["article"]["title"].lower() or \
-               "attention" in top_result["article"]["title"].lower()
+        assert (
+            "transformer" in top_result["article"]["title"].lower()
+            or "attention" in top_result["article"]["title"].lower()
+        )
 
     def test_search_robotics(self, client, sample_articles_with_embeddings):
         """Test searching for robotics returns relevant results."""

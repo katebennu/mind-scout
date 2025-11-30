@@ -47,11 +47,12 @@ from mcp.server.fastmcp import FastMCP
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import time
-from mindscout.database import get_session, Article, UserProfile
-from mindscout.vectorstore import VectorStore
-from mindscout.recommender import RecommendationEngine
+
+from mindscout.database import Article, UserProfile, get_session
 from mindscout.fetchers.arxiv import fetch_arxiv
 from mindscout.fetchers.semanticscholar import SemanticScholarFetcher
+from mindscout.recommender import RecommendationEngine
+from mindscout.vectorstore import VectorStore
 
 # Initialize MCP server
 mcp = FastMCP("Mind Scout")
@@ -77,19 +78,23 @@ def search_papers(query: str, limit: int = 10) -> list[dict]:
         papers = []
         for result in results:
             article = result["article"]
-            papers.append({
-                "id": article.id,
-                "title": article.title,
-                "authors": article.authors,
-                "abstract": article.abstract,
-                "url": article.url,
-                "source": article.source,
-                "published_date": article.published_date.isoformat() if article.published_date else None,
-                "citation_count": article.citation_count,
-                "relevance_score": round(result["relevance"] * 100, 1),
-                "is_read": article.is_read,
-                "rating": article.rating
-            })
+            papers.append(
+                {
+                    "id": article.id,
+                    "title": article.title,
+                    "authors": article.authors,
+                    "abstract": article.abstract,
+                    "url": article.url,
+                    "source": article.source,
+                    "published_date": (
+                        article.published_date.isoformat() if article.published_date else None
+                    ),
+                    "citation_count": article.citation_count,
+                    "relevance_score": round(result["relevance"] * 100, 1),
+                    "is_read": article.is_read,
+                    "rating": article.rating,
+                }
+            )
 
         return papers
 
@@ -116,20 +121,24 @@ def get_recommendations(limit: int = 10) -> list[dict]:
         results = []
         for rec in recommendations:
             article = rec["article"]
-            results.append({
-                "id": article.id,
-                "title": article.title,
-                "authors": article.authors,
-                "abstract": article.abstract,
-                "url": article.url,
-                "source": article.source,
-                "published_date": article.published_date.isoformat() if article.published_date else None,
-                "citation_count": article.citation_count,
-                "match_score": round(rec["score"] * 100, 1),
-                "reasons": rec["reasons"],
-                "is_read": article.is_read,
-                "rating": article.rating
-            })
+            results.append(
+                {
+                    "id": article.id,
+                    "title": article.title,
+                    "authors": article.authors,
+                    "abstract": article.abstract,
+                    "url": article.url,
+                    "source": article.source,
+                    "published_date": (
+                        article.published_date.isoformat() if article.published_date else None
+                    ),
+                    "citation_count": article.citation_count,
+                    "match_score": round(rec["score"] * 100, 1),
+                    "reasons": rec["reasons"],
+                    "is_read": article.is_read,
+                    "rating": article.rating,
+                }
+            )
 
         return results
 
@@ -163,11 +172,13 @@ def get_article(article_id: int) -> dict:
             "url": article.url,
             "source": article.source,
             "source_id": article.source_id,
-            "published_date": article.published_date.isoformat() if article.published_date else None,
+            "published_date": (
+                article.published_date.isoformat() if article.published_date else None
+            ),
             "citation_count": article.citation_count,
             "is_read": article.is_read,
             "rating": article.rating,
-            "fetched_date": article.fetched_date.isoformat() if article.fetched_date else None
+            "fetched_date": article.fetched_date.isoformat() if article.fetched_date else None,
         }
 
     finally:
@@ -180,7 +191,7 @@ def list_articles(
     page_size: int = 10,
     unread_only: bool = False,
     source: Optional[str] = None,
-    sort_by: Literal["recent", "rating", "citations"] = "recent"
+    sort_by: Literal["recent", "rating", "citations"] = "recent",
 ) -> dict:
     """Browse articles in the library with filtering and pagination.
 
@@ -202,7 +213,7 @@ def list_articles(
 
         # Apply filters
         if unread_only:
-            query = query.filter(Article.is_read == False)
+            query = query.filter(Article.is_read.is_(False))
 
         if source:
             query = query.filter(Article.source == source)
@@ -214,7 +225,9 @@ def list_articles(
         if sort_by == "rating":
             query = query.order_by(Article.rating.desc().nullslast(), Article.fetched_date.desc())
         elif sort_by == "citations":
-            query = query.order_by(Article.citation_count.desc().nullslast(), Article.fetched_date.desc())
+            query = query.order_by(
+                Article.citation_count.desc().nullslast(), Article.fetched_date.desc()
+            )
         else:  # recent
             query = query.order_by(Article.fetched_date.desc())
 
@@ -228,20 +241,24 @@ def list_articles(
                     "id": a.id,
                     "title": a.title,
                     "authors": a.authors,
-                    "abstract": a.abstract[:200] + "..." if a.abstract and len(a.abstract) > 200 else a.abstract,
+                    "abstract": (
+                        a.abstract[:200] + "..."
+                        if a.abstract and len(a.abstract) > 200
+                        else a.abstract
+                    ),
                     "url": a.url,
                     "source": a.source,
                     "published_date": a.published_date.isoformat() if a.published_date else None,
                     "citation_count": a.citation_count,
                     "is_read": a.is_read,
-                    "rating": a.rating
+                    "rating": a.rating,
                 }
                 for a in articles
             ],
             "total": total,
             "page": page,
             "page_size": page_size,
-            "total_pages": (total + page_size - 1) // page_size
+            "total_pages": (total + page_size - 1) // page_size,
         }
 
     finally:
@@ -277,7 +294,7 @@ def rate_article(article_id: int, rating: int) -> dict:
             "article_id": article_id,
             "title": article.title,
             "rating": rating,
-            "message": f"Rated '{article.title}' {rating} stars"
+            "message": f"Rated '{article.title}' {rating} stars",
         }
 
     finally:
@@ -311,7 +328,7 @@ def mark_article_read(article_id: int, is_read: bool = True) -> dict:
             "article_id": article_id,
             "title": article.title,
             "is_read": is_read,
-            "message": f"Marked '{article.title}' as {status}"
+            "message": f"Marked '{article.title}' as {status}",
         }
 
     finally:
@@ -335,7 +352,7 @@ def get_profile() -> dict:
                 interests="",  # Stored as comma-separated string
                 skill_level="intermediate",
                 preferred_sources="",  # Stored as comma-separated string
-                daily_reading_goal=5
+                daily_reading_goal=5,
             )
 
         # Calculate statistics
@@ -354,7 +371,11 @@ def get_profile() -> dict:
 
         # Parse comma-separated strings to lists
         interests = [i.strip() for i in profile.interests.split(",")] if profile.interests else []
-        preferred_sources = [s.strip() for s in profile.preferred_sources.split(",")] if profile.preferred_sources else []
+        preferred_sources = (
+            [s.strip() for s in profile.preferred_sources.split(",")]
+            if profile.preferred_sources
+            else []
+        )
 
         return {
             "interests": interests,
@@ -364,11 +385,13 @@ def get_profile() -> dict:
             "statistics": {
                 "total_articles": total_articles,
                 "read_articles": read_articles,
-                "read_percentage": round(read_articles / total_articles * 100, 1) if total_articles > 0 else 0,
+                "read_percentage": (
+                    round(read_articles / total_articles * 100, 1) if total_articles > 0 else 0
+                ),
                 "rated_articles": rated_articles,
                 "average_rating": round(avg_rating, 1) if avg_rating else None,
-                "articles_by_source": sources
-            }
+                "articles_by_source": sources,
+            },
         }
 
     finally:
@@ -398,7 +421,7 @@ def update_interests(interests: list[str]) -> dict:
                 interests=interests_str,
                 skill_level="intermediate",
                 preferred_sources="",
-                daily_reading_goal=5
+                daily_reading_goal=5,
             )
             session.add(profile)
         else:
@@ -409,7 +432,7 @@ def update_interests(interests: list[str]) -> dict:
         return {
             "success": True,
             "interests": interests,
-            "message": f"Updated interests to: {', '.join(interests)}"
+            "message": f"Updated interests to: {', '.join(interests)}",
         }
 
     finally:
@@ -423,7 +446,7 @@ def fetch_articles(
     categories: Optional[list[str]] = None,
     limit: int = 20,
     min_citations: Optional[int] = None,
-    year: Optional[str] = None
+    year: Optional[str] = None,
 ) -> dict:
     """Fetch new research papers from arXiv or Semantic Scholar and add them to your library.
 
@@ -456,7 +479,7 @@ def fetch_articles(
                 "source": "arxiv",
                 "categories": categories,
                 "new_articles": new_count,
-                "message": f"Fetched {new_count} new papers from arXiv categories: {', '.join(categories)}"
+                "message": f"Fetched {new_count} new papers from arXiv categories: {', '.join(categories)}",
             }
 
         elif source == "semanticscholar":
@@ -475,7 +498,7 @@ def fetch_articles(
                     query=query,
                     limit=min(limit, 100),  # S2 API has max 100 per request
                     min_citations=min_citations,
-                    year=year
+                    year=year,
                 )
 
                 # Save to database
@@ -489,10 +512,7 @@ def fetch_articles(
                     "new_articles": new_count,
                     "duplicates": len(papers) - new_count,
                     "message": f"Fetched {len(papers)} papers from Semantic Scholar, {new_count} were new",
-                    "filters": {
-                        "min_citations": min_citations,
-                        "year": year
-                    }
+                    "filters": {"min_citations": min_citations, "year": year},
                 }
 
             except Exception as e:
@@ -504,7 +524,7 @@ def fetch_articles(
                         "success": False,
                         "error": "rate_limit_exceeded",
                         "message": "Semantic Scholar rate limit exceeded. Please wait a few minutes before trying again. The API allows ~100 requests per 5 minutes.",
-                        "suggestion": "Try reducing the limit parameter or wait 5 minutes before retrying."
+                        "suggestion": "Try reducing the limit parameter or wait 5 minutes before retrying.",
                     }
                 else:
                     raise  # Re-raise other exceptions
@@ -516,11 +536,7 @@ def fetch_articles(
             return {"error": f"Unknown source: {source}. Must be 'arxiv' or 'semanticscholar'"}
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to fetch articles: {str(e)}"
-        }
+        return {"success": False, "error": str(e), "message": f"Failed to fetch articles: {str(e)}"}
 
 
 if __name__ == "__main__":

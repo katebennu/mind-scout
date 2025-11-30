@@ -1,7 +1,8 @@
 """Profile API endpoints."""
 
-from typing import List, Optional
 from datetime import datetime
+from typing import Optional
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -11,18 +12,18 @@ router = APIRouter()
 
 
 class ProfileResponse(BaseModel):
-    interests: List[str]
+    interests: list[str]
     skill_level: str
-    preferred_sources: List[str]
+    preferred_sources: list[str]
     daily_reading_goal: int
     created_date: Optional[datetime]
     updated_date: Optional[datetime]
 
 
 class UpdateProfileRequest(BaseModel):
-    interests: Optional[List[str]] = None
+    interests: Optional[list[str]] = None
     skill_level: Optional[str] = None
-    preferred_sources: Optional[List[str]] = None
+    preferred_sources: Optional[list[str]] = None
     daily_reading_goal: Optional[int] = None
 
 
@@ -54,7 +55,7 @@ def get_profile():
             preferred_sources=sources,
             daily_reading_goal=profile.daily_reading_goal or 5,
             created_date=profile.created_date,
-            updated_date=profile.updated_date
+            updated_date=profile.updated_date,
         )
 
     finally:
@@ -91,7 +92,7 @@ def update_profile(request: UpdateProfileRequest):
             preferred_sources=sources,
             daily_reading_goal=profile.daily_reading_goal or 5,
             created_date=profile.created_date,
-            updated_date=profile.updated_date
+            updated_date=profile.updated_date,
         )
 
     finally:
@@ -101,8 +102,9 @@ def update_profile(request: UpdateProfileRequest):
 @router.get("/stats", response_model=StatsResponse)
 def get_stats():
     """Get reading statistics."""
-    from mindscout.database import get_session, Article
     from sqlalchemy import func
+
+    from mindscout.database import Article, get_session
 
     session = get_session()
 
@@ -111,7 +113,7 @@ def get_stats():
         total = session.query(Article).count()
 
         # Read/unread counts
-        read_count = session.query(Article).filter(Article.is_read == True).count()
+        read_count = session.query(Article).filter(Article.is_read).count()
         unread_count = total - read_count
         read_pct = (read_count / total * 100) if total > 0 else 0
 
@@ -119,32 +121,31 @@ def get_stats():
         rated_count = session.query(Article).filter(Article.rating.isnot(None)).count()
 
         # Average rating
-        avg_rating = session.query(func.avg(Article.rating)).filter(
-            Article.rating.isnot(None)
-        ).scalar()
+        avg_rating = (
+            session.query(func.avg(Article.rating)).filter(Article.rating.isnot(None)).scalar()
+        )
 
         # Articles by source
         by_source = {}
-        source_counts = session.query(
-            Article.source,
-            func.count(Article.id)
-        ).group_by(Article.source).all()
+        source_counts = (
+            session.query(Article.source, func.count(Article.id)).group_by(Article.source).all()
+        )
 
         for source, count in source_counts:
             by_source[source] = count
 
         # Recent activity (last 7 days)
         from datetime import timedelta
+
         recent_date = datetime.utcnow() - timedelta(days=7)
 
-        recent_fetched = session.query(Article).filter(
-            Article.fetched_date >= recent_date
-        ).count()
+        recent_fetched = session.query(Article).filter(Article.fetched_date >= recent_date).count()
 
-        recent_read = session.query(Article).filter(
-            Article.is_read == True,
-            Article.fetched_date >= recent_date
-        ).count()
+        recent_read = (
+            session.query(Article)
+            .filter(Article.is_read, Article.fetched_date >= recent_date)
+            .count()
+        )
 
         return StatsResponse(
             total_articles=total,
@@ -156,8 +157,8 @@ def get_stats():
             articles_by_source=by_source,
             recent_activity={
                 "fetched_last_7_days": recent_fetched,
-                "read_last_7_days": recent_read
-            }
+                "read_last_7_days": recent_read,
+            },
         )
 
     finally:
