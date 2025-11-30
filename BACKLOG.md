@@ -12,23 +12,11 @@ A prioritized list of features, improvements, and ideas for Mind Scout.
 
 ## Core Features
 
-### Fetch & Process Pipeline
-- [ ] `[P0]` Unified fetch-and-process flow (fetch new articles, then process with LLM)
-  - Trigger from UI (button/manual)
-  - Trigger as scheduled background task (cron/scheduler)
-  - Progress tracking and status reporting
-  - Configurable schedule (hourly, daily, etc.)
-- [ ] `[P0]` Batch processing for cost reduction (50-90% savings)
-  - Anthropic Batch API (50% cheaper, async results)
-  - Multi-article prompts (process 5-10 articles per request)
-  - Tiered processing (Haiku for all, Sonnet only for interest matches)
-
 ### Content Sources
 - [ ] `[P1]` Papers with Code integration (GitHub links, implementation status)
 - [ ] `[P1]` Hugging Face daily papers integration
 - [ ] `[P2]` YouTube AI channels (Yannic Kilcher, Two Minute Papers, etc.)
 - [ ] `[P2]` AI podcast feeds (Lex Fridman, TWIML, Latent Space)
-- [ ] `[P3]` Twitter/X integration for AI researchers
 - [ ] `[P3]` Conference paper tracking (NeurIPS, ICML, ICLR, ACL)
 
 ### Recommendations
@@ -50,12 +38,12 @@ A prioritized list of features, improvements, and ideas for Mind Scout.
 ## Technical Improvements
 
 ### Performance & Scalability
+- [ ] `[P0]` PostgreSQL migration for production deployment
 - [ ] `[P0]` Test coverage improvements (fix failing tests, add new tests)
 - [ ] `[P1]` Convert remaining sync endpoints to async
 - [ ] `[P1]` Background task queue for long-running operations (Celery/ARQ)
 - [ ] `[P2]` Redis caching for API responses
 - [ ] `[P2]` Database connection pooling optimization
-- [ ] `[P3]` PostgreSQL migration for production deployment
 
 ### Code Quality
 - [ ] `[P0]` Fix Pydantic deprecation warnings (use ConfigDict)
@@ -68,7 +56,6 @@ A prioritized list of features, improvements, and ideas for Mind Scout.
 ### Infrastructure
 - [ ] `[P1]` Docker containerization
 - [ ] `[P1]` docker-compose for local development
-- [ ] `[P2]` CI/CD pipeline (GitHub Actions)
 - [ ] `[P2]` Kubernetes/GKE deployment (see microservices plan)
 - [ ] `[P3]` Terraform infrastructure as code
 
@@ -180,6 +167,10 @@ A prioritized list of features, improvements, and ideas for Mind Scout.
 
 ## Recently Completed
 
+- [x] ~~Unified fetch-and-process flow with scheduler~~
+- [x] ~~Batch processing with Anthropic Batch API~~
+- [x] ~~CI/CD pipeline (GitHub Actions)~~
+- [x] ~~Pre-commit hooks (black, ruff, eslint)~~
 - [x] ~~Database session management (context manager)~~
 - [x] ~~Error handling in fetchers (structured logging)~~
 - [x] ~~Configuration management (pydantic-settings)~~
@@ -212,4 +203,4 @@ When adding a new item:
 
 ---
 
-*Last updated: November 28, 2025*
+*Last updated: November 30, 2025*
