@@ -214,17 +214,41 @@ engine = create_engine(
 Session = sessionmaker(bind=engine)
 
 # Async database engine and session (for FastAPI endpoints)
-_async_db_url = _get_async_database_url(settings.database_url)
-async_engine = create_async_engine(
-    _async_db_url,
-    echo=False,
-    **_get_engine_options(),
-)
-AsyncSessionLocal = async_sessionmaker(
-    bind=async_engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+# These are lazily initialized to avoid event loop issues in tests
+_async_engine = None
+_async_session_local = None
+
+
+def get_async_engine():
+    """Get or create async database engine.
+
+    Lazily creates the engine on first use to ensure it's created
+    in the correct event loop context.
+    """
+    global _async_engine
+    if _async_engine is None:
+        _async_db_url = _get_async_database_url(settings.database_url)
+        _async_engine = create_async_engine(
+            _async_db_url,
+            echo=False,
+            **_get_engine_options(),
+        )
+    return _async_engine
+
+
+def get_async_session_local():
+    """Get or create async session factory.
+
+    Lazily creates the session factory on first use.
+    """
+    global _async_session_local
+    if _async_session_local is None:
+        _async_session_local = async_sessionmaker(
+            bind=get_async_engine(),
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
+    return _async_session_local
 
 
 def init_db():
@@ -234,7 +258,7 @@ def init_db():
 
 async def init_async_db():
     """Initialize the database schema asynchronously."""
-    async with async_engine.begin() as conn:
+    async with get_async_engine().begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
@@ -279,7 +303,7 @@ async def get_async_db_session() -> AsyncGenerator[AsyncSession, None]:
             result = await session.execute(select(Article))
             articles = result.scalars().all()
     """
-    session = AsyncSessionLocal()
+    session = get_async_session_local()()
     try:
         yield session
         await session.commit()

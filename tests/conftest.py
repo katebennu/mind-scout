@@ -58,15 +58,13 @@ def isolated_test_db(tmp_path, monkeypatch):
 
     # Re-initialize the database module with test database
     from sqlalchemy import create_engine, text
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
     from sqlalchemy.orm import sessionmaker
 
     from mindscout import database
 
-    sync_url, async_url = get_test_database_url()
+    sync_url, _ = get_test_database_url()
 
     test_engine = create_engine(sync_url)
-    test_async_engine = create_async_engine(async_url)
 
     # Clean up existing tables before each test
     with test_engine.connect() as conn:
@@ -79,26 +77,30 @@ def isolated_test_db(tmp_path, monkeypatch):
         conn.commit()
 
     test_session_factory = sessionmaker(bind=test_engine)
-    test_async_session_factory = async_sessionmaker(
-        bind=test_async_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
 
     # Patch the database module's sync engine and Session
     monkeypatch.setattr(database, "engine", test_engine)
     monkeypatch.setattr(database, "Session", test_session_factory)
 
-    # Patch the database module's async engine and Session
-    monkeypatch.setattr(database, "async_engine", test_async_engine)
-    monkeypatch.setattr(database, "AsyncSessionLocal", test_async_session_factory)
+    # Reset the lazy-initialized async globals so they get recreated
+    # with the test database URL in the correct event loop
+    monkeypatch.setattr(database, "_async_engine", None)
+    monkeypatch.setattr(database, "_async_session_local", None)
+
+    # Patch the settings to use test database URL
+    from mindscout.config import get_settings
+
+    test_settings = get_settings()
+    monkeypatch.setattr(test_settings, "database_url", sync_url)
 
     # Initialize the test database schema
     database.init_db()
 
     yield tmp_path
 
-    # Tables are dropped at the start of the next test
+    # Reset async globals at end of test to avoid event loop issues
+    database._async_engine = None
+    database._async_session_local = None
 
 
 @pytest.fixture
