@@ -45,7 +45,7 @@ mind-scout/
 
 Data directory (not in repo):
 ~/.mindscout/
-└── mindscout.db          # SQLite database
+└── chroma/               # Vector database for semantic search
 ```
 
 ## Core Components

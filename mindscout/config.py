@@ -5,7 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,10 +24,27 @@ class Settings(BaseSettings):
         default=Path.home() / ".mindscout", description="Base directory for Mind Scout data"
     )
 
-    # Database
-    database_url: Optional[str] = Field(
-        default=None, description="Database URL (defaults to SQLite in data_dir)"
+    # Database (PostgreSQL only)
+    database_url: str = Field(
+        default="postgresql://localhost:5432/mindscout",
+        description="PostgreSQL database URL. " "Format: postgresql://user:pass@host:port/database",
     )
+
+    @field_validator("database_url")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        """Ensure database URL is PostgreSQL."""
+        if not v.startswith("postgresql"):
+            raise ValueError(
+                "Only PostgreSQL is supported. "
+                "URL must start with postgresql:// "
+                f"(got: {v[:20]}...)"
+            )
+        return v
+
+    # PostgreSQL connection pool settings
+    db_pool_size: int = Field(default=5, description="Database connection pool size")
+    db_max_overflow: int = Field(default=10, description="Max connections beyond pool size")
 
     # API Keys
     anthropic_api_key: Optional[str] = Field(
@@ -71,21 +88,9 @@ class Settings(BaseSettings):
     phoenix_project_name: str = Field(default="mind-scout", description="Phoenix project name")
 
     @property
-    def db_path(self) -> Path:
-        """Get database path."""
-        return self.data_dir / "mindscout.db"
-
-    @property
     def chroma_path(self) -> Path:
         """Get ChromaDB path."""
         return self.data_dir / "chroma"
-
-    @property
-    def effective_database_url(self) -> str:
-        """Get effective database URL."""
-        if self.database_url:
-            return self.database_url
-        return f"sqlite:///{self.db_path}"
 
     def setup_directories(self):
         """Create necessary directories."""
@@ -108,10 +113,9 @@ def get_settings() -> Settings:
     return settings
 
 
-# Legacy compatibility - these will be deprecated
+# Legacy compatibility
 _settings = get_settings()
 DATA_DIR = _settings.data_dir
-DB_PATH = _settings.db_path
 
 # arXiv RSS feeds by category
 ARXIV_FEEDS = {

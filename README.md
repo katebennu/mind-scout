@@ -217,7 +217,7 @@ Other settings:
 
 ### Phase 1: Content Discovery ✅ COMPLETE
 - ✅ arXiv RSS integration
-- ✅ SQLite storage
+- ✅ PostgreSQL storage
 - ✅ CLI interface
 - ✅ Read tracking
 

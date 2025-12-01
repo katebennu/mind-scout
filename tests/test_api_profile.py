@@ -1,23 +1,10 @@
 """Tests for profile API endpoints."""
 
-import sys
 from datetime import datetime
-from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from backend.main import app
 from mindscout.database import Article, UserProfile, get_session
-
-
-@pytest.fixture
-def client():
-    """Create test client."""
-    return TestClient(app)
 
 
 @pytest.fixture

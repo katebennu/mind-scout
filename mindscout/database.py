@@ -6,13 +6,17 @@ from datetime import datetime
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, relationship, sessionmaker
 
 from mindscout.config import get_settings
 
 settings = get_settings()
-Base = declarative_base()
+
+
+class Base(DeclarativeBase):
+    """Base class for all database models."""
+
+    pass
 
 
 class Article(Base):
@@ -176,19 +180,75 @@ class Notification(Base):
         return f"<Notification article_id={self.article_id} read={self.is_read}>"
 
 
+def _get_async_database_url(sync_url: str) -> str:
+    """Convert sync PostgreSQL URL to async version.
+
+    Converts:
+    - postgresql://... -> postgresql+asyncpg://...
+    - postgresql+psycopg2://... -> postgresql+asyncpg://...
+    """
+    if sync_url.startswith("postgresql://"):
+        return sync_url.replace("postgresql://", "postgresql+asyncpg://")
+    elif sync_url.startswith("postgresql+psycopg2://"):
+        return sync_url.replace("postgresql+psycopg2://", "postgresql+asyncpg://")
+    elif sync_url.startswith("postgresql+asyncpg://"):
+        return sync_url  # Already async
+    else:
+        raise ValueError(f"Invalid PostgreSQL URL: {sync_url}")
+
+
+def _get_engine_options() -> dict:
+    """Get PostgreSQL connection pool settings."""
+    return {
+        "pool_size": settings.db_pool_size,
+        "max_overflow": settings.db_max_overflow,
+        "pool_pre_ping": True,  # Verify connections before using
+    }
+
+
 # Synchronous database engine and session (for existing code)
-engine = create_engine(settings.effective_database_url)
+engine = create_engine(
+    settings.database_url,
+    **_get_engine_options(),
+)
 Session = sessionmaker(bind=engine)
 
 # Async database engine and session (for FastAPI endpoints)
-# SQLite async requires aiosqlite: pip install aiosqlite
-_async_db_url = settings.effective_database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
-async_engine = create_async_engine(_async_db_url, echo=False)
-AsyncSessionLocal = async_sessionmaker(
-    bind=async_engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+# These are lazily initialized to avoid event loop issues in tests
+_async_engine = None
+_async_session_local = None
+
+
+def get_async_engine():
+    """Get or create async database engine.
+
+    Lazily creates the engine on first use to ensure it's created
+    in the correct event loop context.
+    """
+    global _async_engine
+    if _async_engine is None:
+        _async_db_url = _get_async_database_url(settings.database_url)
+        _async_engine = create_async_engine(
+            _async_db_url,
+            echo=False,
+            **_get_engine_options(),
+        )
+    return _async_engine
+
+
+def get_async_session_local():
+    """Get or create async session factory.
+
+    Lazily creates the session factory on first use.
+    """
+    global _async_session_local
+    if _async_session_local is None:
+        _async_session_local = async_sessionmaker(
+            bind=get_async_engine(),
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
+    return _async_session_local
 
 
 def init_db():
@@ -198,7 +258,7 @@ def init_db():
 
 async def init_async_db():
     """Initialize the database schema asynchronously."""
-    async with async_engine.begin() as conn:
+    async with get_async_engine().begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
@@ -243,7 +303,7 @@ async def get_async_db_session() -> AsyncGenerator[AsyncSession, None]:
             result = await session.execute(select(Article))
             articles = result.scalars().all()
     """
-    session = AsyncSessionLocal()
+    session = get_async_session_local()()
     try:
         yield session
         await session.commit()
