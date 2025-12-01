@@ -150,6 +150,8 @@ def test_app(isolated_test_db):
 
     # Clean up
     app.dependency_overrides.clear()
+    # Dispose of the engine to close all connections
+    test_async_engine.sync_engine.dispose()
 
 
 @pytest.fixture
@@ -157,4 +159,5 @@ def client(test_app):
     """Create test client with overridden database dependency."""
     from fastapi.testclient import TestClient
 
-    return TestClient(test_app)
+    with TestClient(test_app) as client:
+        yield client
