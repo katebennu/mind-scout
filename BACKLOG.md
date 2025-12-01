@@ -38,8 +38,8 @@ A prioritized list of features, improvements, and ideas for Mind Scout.
 ## Technical Improvements
 
 ### Performance & Scalability
-- [ ] `[P0]` PostgreSQL migration for production deployment
-- [ ] `[P0]` Test coverage improvements (fix failing tests, add new tests)
+- [x] ~~`[P0]` PostgreSQL migration for production deployment~~
+- [x] ~~`[P0]` Test coverage improvements (fix failing tests, add new tests)~~
 - [ ] `[P1]` Convert remaining sync endpoints to async
 - [ ] `[P1]` Background task queue for long-running operations (Celery/ARQ)
 - [ ] `[P2]` Redis caching for API responses
@@ -54,8 +54,8 @@ A prioritized list of features, improvements, and ideas for Mind Scout.
 - [ ] `[P2]` Structured JSON logging
 
 ### Infrastructure
-- [ ] `[P1]` Docker containerization
-- [ ] `[P1]` docker-compose for local development
+- [ ] `[P1]` Docker containerization (backend, frontend)
+- [x] ~~`[P1]` docker-compose for PostgreSQL~~
 - [ ] `[P2]` Kubernetes/GKE deployment (see microservices plan)
 - [ ] `[P3]` Terraform infrastructure as code
 
@@ -64,6 +64,7 @@ A prioritized list of features, improvements, and ideas for Mind Scout.
 ## Frontend / UI
 
 ### Web Interface
+- [ ] `[P1]` Display topics on processed articles in UI
 - [ ] `[P1]` Dark mode toggle
 - [ ] `[P1]` Mobile responsive improvements
 - [ ] `[P2]` Keyboard shortcuts for power users
@@ -167,6 +168,9 @@ A prioritized list of features, improvements, and ideas for Mind Scout.
 
 ## Recently Completed
 
+- [x] ~~PostgreSQL migration for production deployment~~
+- [x] ~~docker-compose for PostgreSQL~~
+- [x] ~~Test coverage improvements (fix failing tests)~~
 - [x] ~~Unified fetch-and-process flow with scheduler~~
 - [x] ~~Batch processing with Anthropic Batch API~~
 - [x] ~~CI/CD pipeline (GitHub Actions)~~
