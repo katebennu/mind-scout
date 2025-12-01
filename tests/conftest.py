@@ -2,9 +2,11 @@
 
 import os
 import sys
+from collections.abc import AsyncGenerator
 from pathlib import Path
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -111,3 +113,48 @@ def db_session(isolated_test_db):
     session = get_session()
     yield session
     session.close()
+
+
+@pytest.fixture
+def test_app(isolated_test_db):
+    """Create a FastAPI test app with overridden database dependency.
+
+    This fixture creates a fresh async engine for each test to avoid
+    event loop conflicts with TestClient.
+    """
+    from backend.main import app
+    from mindscout.database import get_async_db
+
+    sync_url, async_url = get_test_database_url()
+
+    # Create a fresh async engine for this test
+    test_async_engine = create_async_engine(async_url, echo=False)
+    test_async_session_factory = async_sessionmaker(
+        bind=test_async_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    async def override_get_async_db() -> AsyncGenerator[AsyncSession, None]:
+        async with test_async_session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_async_db] = override_get_async_db
+
+    yield app
+
+    # Clean up
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def client(test_app):
+    """Create test client with overridden database dependency."""
+    from fastapi.testclient import TestClient
+
+    return TestClient(test_app)

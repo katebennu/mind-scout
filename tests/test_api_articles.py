@@ -3,16 +3,8 @@
 from datetime import datetime
 
 import pytest
-from fastapi.testclient import TestClient
 
-from backend.main import app
 from mindscout.database import Article, get_session
-
-
-@pytest.fixture
-def client():
-    """Create test client."""
-    return TestClient(app)
 
 
 @pytest.fixture
