@@ -1,5 +1,6 @@
 """Pytest configuration and shared fixtures for test isolation."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -9,14 +10,43 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
+def get_test_database_url() -> tuple[str, str]:
+    """Get PostgreSQL database URLs for testing.
+
+    Returns sync and async database URLs based on TEST_DATABASE_URL env var.
+    Defaults to local PostgreSQL if not set.
+
+    Returns:
+        Tuple of (sync_url, async_url)
+    """
+    test_db_url = os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql://mindscout:mindscout@localhost:5432/mindscout_test",
+    )
+
+    if test_db_url.startswith("postgresql+asyncpg://"):
+        sync_url = test_db_url.replace("postgresql+asyncpg://", "postgresql://")
+        async_url = test_db_url
+    else:
+        sync_url = test_db_url
+        async_url = test_db_url.replace("postgresql://", "postgresql+asyncpg://")
+
+    return sync_url, async_url
+
+
 @pytest.fixture(autouse=True)
 def isolated_test_db(tmp_path, monkeypatch):
     """Automatically isolate each test with its own database.
 
     This fixture runs automatically for every test, ensuring:
-    1. Each test gets a fresh temporary database
+    1. Each test gets a clean database state
     2. The production database is never touched
     3. Database state doesn't leak between tests
+
+    Requires PostgreSQL to be running. For local development:
+        docker compose up -d postgres
+
+    For CI, GitHub Actions provides a PostgreSQL service container.
     """
     # Set environment variable BEFORE any database imports
     monkeypatch.setenv("MINDSCOUT_DATA_DIR", str(tmp_path))
@@ -25,23 +55,30 @@ def isolated_test_db(tmp_path, monkeypatch):
     from mindscout import config
 
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
-    monkeypatch.setattr(config, "DB_PATH", tmp_path / "mindscout.db")
 
-    # Re-initialize the database module with the new path
-    from sqlalchemy import create_engine
+    # Re-initialize the database module with test database
+    from sqlalchemy import create_engine, text
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
     from sqlalchemy.orm import sessionmaker
 
     from mindscout import database
 
-    test_db_path = tmp_path / "mindscout.db"
+    sync_url, async_url = get_test_database_url()
 
-    # Create a new sync engine pointing to the test database
-    test_engine = create_engine(f"sqlite:///{test_db_path}")
+    test_engine = create_engine(sync_url)
+    test_async_engine = create_async_engine(async_url)
+
+    # Clean up existing tables before each test
+    with test_engine.connect() as conn:
+        # Drop all tables in reverse order of dependencies
+        conn.execute(text("DROP TABLE IF EXISTS notifications CASCADE"))
+        conn.execute(text("DROP TABLE IF EXISTS pending_batches CASCADE"))
+        conn.execute(text("DROP TABLE IF EXISTS rss_feeds CASCADE"))
+        conn.execute(text("DROP TABLE IF EXISTS user_profile CASCADE"))
+        conn.execute(text("DROP TABLE IF EXISTS articles CASCADE"))
+        conn.commit()
+
     test_session_factory = sessionmaker(bind=test_engine)
-
-    # Create a new async engine pointing to the test database
-    test_async_engine = create_async_engine(f"sqlite+aiosqlite:///{test_db_path}")
     test_async_session_factory = async_sessionmaker(
         bind=test_async_engine,
         class_=AsyncSession,
@@ -61,7 +98,7 @@ def isolated_test_db(tmp_path, monkeypatch):
 
     yield tmp_path
 
-    # Cleanup happens automatically when tmp_path is removed
+    # Tables are dropped at the start of the next test
 
 
 @pytest.fixture

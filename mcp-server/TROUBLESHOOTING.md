@@ -136,26 +136,31 @@ pip install -e .
 
 **Error:**
 ```
-sqlite3.OperationalError: unable to open database file
+sqlalchemy.exc.OperationalError: could not connect to server
 ```
 
 **Solutions:**
 
-#### Check Database Exists
+#### Check PostgreSQL is Running
 ```bash
-ls -la ~/.mindscout/mindscout.db
+docker compose up -d postgres
+# or check your PostgreSQL service
 ```
 
-#### Initialize if Missing
+#### Verify Connection
 ```bash
-mindscout profile list
+psql postgresql://mindscout:mindscout@localhost:5432/mindscout -c "SELECT 1"
 ```
 
-This will create the database if it doesn't exist.
-
-#### Check Permissions
+#### Check Environment Variable
 ```bash
-chmod 644 ~/.mindscout/mindscout.db
+echo $MINDSCOUT_DATABASE_URL
+# Should be: postgresql://user:pass@host:port/database
+```
+
+#### Run Migrations
+```bash
+make db-upgrade
 ```
 
 ---
@@ -316,11 +321,11 @@ echo ""
 echo "2. MCP SDK:"
 pip show mcp | grep Version
 echo ""
-echo "3. Database:"
-ls -lh ~/.mindscout/mindscout.db 2>&1
+echo "3. PostgreSQL Connection:"
+psql $MINDSCOUT_DATABASE_URL -c "SELECT 1" 2>&1 || echo "Cannot connect to database"
 echo ""
 echo "4. Server Test:"
-timeout 5 python /Users/kate/projects/agento/mcp-server/server.py 2>&1 || echo "Server loads OK"
+timeout 5 python mcp-server/server.py 2>&1 || echo "Server loads OK"
 echo ""
 echo "5. Recent MCP Logs:"
 tail -5 ~/Library/Logs/Claude/mcp-server-mindscout.log 2>&1 || echo "No logs yet"

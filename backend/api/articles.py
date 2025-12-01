@@ -116,17 +116,18 @@ async def list_articles(
         else:
             stmt = stmt.order_by(Article.rating.asc().nullsfirst(), Article.id.asc())
     else:
-        # Default: primary sort by fetched_date (truncated to minute), secondary by published_date
-        # Truncating to minute groups articles fetched in the same batch together
-        fetched_minute = func.strftime("%Y-%m-%d %H:%M", Article.fetched_date)
-
+        # Default: sort by fetched_date, then published_date
         if sort_order == "desc":
             stmt = stmt.order_by(
-                fetched_minute.desc(), Article.published_date.desc(), Article.id.desc()
+                Article.fetched_date.desc().nullslast(),
+                Article.published_date.desc().nullslast(),
+                Article.id.desc(),
             )
         else:
             stmt = stmt.order_by(
-                fetched_minute.asc(), Article.published_date.asc(), Article.id.asc()
+                Article.fetched_date.asc().nullsfirst(),
+                Article.published_date.asc().nullsfirst(),
+                Article.id.asc(),
             )
 
     # Apply pagination
