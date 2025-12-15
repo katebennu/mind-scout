@@ -156,6 +156,24 @@ export default function Recommendations() {
                         variant="outlined"
                       />
                     )}
+                    {article.topics ? (
+                      JSON.parse(article.topics).slice(0, 5).map((topic, idx) => (
+                        <Chip
+                          key={idx}
+                          label={topic}
+                          size="small"
+                          color="secondary"
+                          variant="outlined"
+                        />
+                      ))
+                    ) : (
+                      <Chip
+                        label="Not yet processed"
+                        size="small"
+                        variant="outlined"
+                        disabled
+                      />
+                    )}
                   </Stack>
 
                   <Link
