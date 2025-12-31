@@ -7,15 +7,20 @@ This MCP server enables Claude Desktop (and other MCP-compatible AI assistants) 
 - Search your research library with semantic search
 - Fetch new papers from arXiv and Semantic Scholar
 - Get personalized recommendations
+- Plan research and discover new reading material
 - Rate and track reading progress
 - Manage your profile and interests
 
-Tools (9 total):
+Tools (11 total):
 
 Search & Discovery:
 - search_papers: Semantic search through research papers using natural language
 - get_recommendations: Get personalized paper recommendations based on interests
 - fetch_articles: Fetch new papers from arXiv or Semantic Scholar and add to library
+
+Research Planning:
+- plan_research: Search for papers on a topic, get LLM analysis of relevance and difficulty
+- execute_research_plan: Download selected papers and create an ordered reading plan
 
 Library Management:
 - list_articles: Browse articles with pagination and filters (unread, source, sort)
@@ -35,24 +40,50 @@ Usage:
     - "Search my library for papers about diffusion models"
     - "What are my top 5 recommendations?"
     - "Show my reading statistics"
+    - "I want to learn about RLHF" (triggers research planning workflow)
 """
 
+import os
 import sys
 from pathlib import Path
 from typing import Literal, Optional
 
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 
 # Add parent directory to path to import mindscout modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import time
+# Load environment variables from .env file
+load_dotenv(Path(__file__).parent.parent / ".env")
 
-from mindscout.database import Article, UserProfile, get_session
-from mindscout.fetchers.arxiv import fetch_arxiv
-from mindscout.fetchers.semanticscholar import SemanticScholarFetcher
-from mindscout.recommender import RecommendationEngine
-from mindscout.vectorstore import VectorStore
+import time  # noqa: E402
+
+from mindscout.config import get_settings  # noqa: E402
+from mindscout.database import Article, UserProfile, get_session  # noqa: E402
+from mindscout.fetchers.arxiv import fetch_arxiv  # noqa: E402
+from mindscout.fetchers.semanticscholar import SemanticScholarFetcher  # noqa: E402
+from mindscout.observability import init_phoenix  # noqa: E402
+from mindscout.recommender import RecommendationEngine  # noqa: E402
+from mindscout.research_planner import ResearchPlannerAgent  # noqa: E402
+from mindscout.vectorstore import VectorStore  # noqa: E402
+
+# Validate required environment variables
+if not os.getenv("ANTHROPIC_API_KEY"):
+    raise ValueError("ANTHROPIC_API_KEY environment variable is required")
+
+settings = get_settings()
+if not settings.phoenix_api_key and not os.getenv("PHOENIX_API_KEY"):
+    raise ValueError(
+        "Phoenix API key is required. Set MINDSCOUT_PHOENIX_API_KEY or PHOENIX_API_KEY environment variable. "
+        "Get your key from https://app.phoenix.arize.com"
+    )
+
+tracer = init_phoenix(project_name="mindscout-mcp")
+if not tracer:
+    raise RuntimeError(
+        "Failed to initialize Phoenix tracing. Check your API key and network connection."
+    )
 
 # Initialize MCP server
 mcp = FastMCP("Mind Scout")
@@ -537,6 +568,86 @@ def fetch_articles(
 
     except Exception as e:
         return {"success": False, "error": str(e), "message": f"Failed to fetch articles: {str(e)}"}
+
+
+@mcp.tool()
+def plan_research(
+    goal: str,
+    skill_level: Literal["beginner", "intermediate", "advanced"] = "intermediate",
+    max_candidates: int = 10,
+) -> dict:
+    """Search for papers to help you learn a topic. Returns candidates with analysis.
+
+    This is step 1 of the research planning workflow. After reviewing the candidates,
+    use execute_research_plan() with the plan_id and your selected paper indices.
+
+    Args:
+        goal: What you want to learn (e.g., "RLHF", "diffusion models", "transformers")
+        skill_level: Your current level - "beginner", "intermediate", or "advanced"
+        max_candidates: Maximum number of candidates to return (default: 10)
+
+    Returns:
+        Dictionary with:
+        - plan_id: ID to use with execute_research_plan
+        - candidates: List of papers with relevance scores, difficulty, and rationale
+        - recommendation: Overall recommendation from the analysis
+
+    Example:
+        User: "I want to learn about RLHF"
+        -> plan_research(goal="RLHF", skill_level="intermediate")
+        -> Returns candidates, user reviews and picks indices
+        -> execute_research_plan(plan_id="abc123", selected_indices=[0, 2, 4])
+    """
+    agent = ResearchPlannerAgent()
+
+    try:
+        result = agent.plan(
+            goal=goal,
+            skill_level=skill_level,
+            max_candidates=max_candidates,
+        )
+        return result
+
+    finally:
+        agent.close()
+
+
+@mcp.tool()
+def execute_research_plan(
+    plan_id: str,
+    selected_indices: list[int],
+) -> dict:
+    """Download selected papers and create an ordered reading plan.
+
+    This is step 2 of the research planning workflow. Use this after reviewing
+    candidates from plan_research() and deciding which papers to download.
+
+    Args:
+        plan_id: The plan_id returned from plan_research()
+        selected_indices: List of paper indices to download (0-based, from candidates list)
+
+    Returns:
+        Dictionary with:
+        - papers_added: Number of new papers added to library
+        - duplicates_skipped: Number of papers already in library
+        - reading_plan: Ordered reading path with rationale and time estimates
+
+    Example:
+        After plan_research returned candidates 0-7:
+        -> execute_research_plan(plan_id="abc123", selected_indices=[0, 2, 4])
+        -> Downloads papers 0, 2, 4 and creates reading plan
+    """
+    agent = ResearchPlannerAgent()
+
+    try:
+        result = agent.execute(
+            plan_id=plan_id,
+            selected_indices=selected_indices,
+        )
+        return result
+
+    finally:
+        agent.close()
 
 
 if __name__ == "__main__":

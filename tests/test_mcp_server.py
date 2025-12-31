@@ -14,7 +14,7 @@ pytest.importorskip("mcp", reason="MCP module not installed")
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from mindscout.database import Article, UserProfile, get_session
+from mindscout.database import Article, UserProfile, get_session  # noqa: E402
 
 
 @pytest.fixture
@@ -370,3 +370,141 @@ class TestFetchArticles:
 
         assert "error" in result
         assert "Unknown source" in result["error"]
+
+
+class TestPlanResearch:
+    """Tests for plan_research tool."""
+
+    def test_plan_research_success(self, mcp_server):
+        """Test successful research planning."""
+        mock_agent = MagicMock()
+        mock_agent.plan.return_value = {
+            "success": True,
+            "plan_id": "abc123",
+            "goal": "RLHF",
+            "skill_level": "intermediate",
+            "candidates": [
+                {
+                    "index": 0,
+                    "title": "Test Paper",
+                    "relevance_score": 9,
+                    "difficulty": "intermediate",
+                    "rationale": "Good paper.",
+                }
+            ],
+            "recommendation": "Start with paper 0.",
+        }
+
+        with patch.object(mcp_server, "ResearchPlannerAgent", return_value=mock_agent):
+            result = mcp_server.plan_research(
+                goal="RLHF", skill_level="intermediate", max_candidates=10
+            )
+
+            assert result["success"]
+            assert result["plan_id"] == "abc123"
+            assert result["goal"] == "RLHF"
+            assert len(result["candidates"]) == 1
+            mock_agent.plan.assert_called_once_with(
+                goal="RLHF",
+                skill_level="intermediate",
+                max_candidates=10,
+            )
+            mock_agent.close.assert_called_once()
+
+    def test_plan_research_no_papers_found(self, mcp_server):
+        """Test planning when no papers are found."""
+        mock_agent = MagicMock()
+        mock_agent.plan.return_value = {
+            "success": False,
+            "error": "no_papers_found",
+            "message": "No papers found for 'obscure topic'.",
+        }
+
+        with patch.object(mcp_server, "ResearchPlannerAgent", return_value=mock_agent):
+            result = mcp_server.plan_research(goal="obscure topic")
+
+            assert not result["success"]
+            assert result["error"] == "no_papers_found"
+            mock_agent.close.assert_called_once()
+
+    def test_plan_research_default_parameters(self, mcp_server):
+        """Test planning with default parameters."""
+        mock_agent = MagicMock()
+        mock_agent.plan.return_value = {"success": True, "plan_id": "test"}
+
+        with patch.object(mcp_server, "ResearchPlannerAgent", return_value=mock_agent):
+            mcp_server.plan_research(goal="transformers")
+
+            mock_agent.plan.assert_called_once_with(
+                goal="transformers",
+                skill_level="intermediate",
+                max_candidates=10,
+            )
+
+
+class TestExecuteResearchPlan:
+    """Tests for execute_research_plan tool."""
+
+    def test_execute_research_plan_success(self, mcp_server):
+        """Test successful plan execution."""
+        mock_agent = MagicMock()
+        mock_agent.execute.return_value = {
+            "success": True,
+            "goal": "RLHF",
+            "papers_added": 2,
+            "duplicates_skipped": 0,
+            "reading_plan": {
+                "summary": "Learning path for RLHF",
+                "path": [
+                    {
+                        "order": 1,
+                        "title": "Paper 1",
+                        "rationale": "Start here.",
+                        "estimated_time": "2 hours",
+                    }
+                ],
+            },
+        }
+
+        with patch.object(mcp_server, "ResearchPlannerAgent", return_value=mock_agent):
+            result = mcp_server.execute_research_plan(plan_id="abc123", selected_indices=[0, 1])
+
+            assert result["success"]
+            assert result["papers_added"] == 2
+            assert "reading_plan" in result
+            mock_agent.execute.assert_called_once_with(
+                plan_id="abc123",
+                selected_indices=[0, 1],
+            )
+            mock_agent.close.assert_called_once()
+
+    def test_execute_research_plan_not_found(self, mcp_server):
+        """Test execution with non-existent plan."""
+        mock_agent = MagicMock()
+        mock_agent.execute.return_value = {
+            "success": False,
+            "error": "plan_not_found",
+            "message": "Plan 'nonexistent' not found or expired.",
+        }
+
+        with patch.object(mcp_server, "ResearchPlannerAgent", return_value=mock_agent):
+            result = mcp_server.execute_research_plan(plan_id="nonexistent", selected_indices=[0])
+
+            assert not result["success"]
+            assert result["error"] == "plan_not_found"
+            mock_agent.close.assert_called_once()
+
+    def test_execute_research_plan_invalid_indices(self, mcp_server):
+        """Test execution with invalid indices."""
+        mock_agent = MagicMock()
+        mock_agent.execute.return_value = {
+            "success": False,
+            "error": "invalid_indices",
+            "message": "No valid paper indices provided.",
+        }
+
+        with patch.object(mcp_server, "ResearchPlannerAgent", return_value=mock_agent):
+            result = mcp_server.execute_research_plan(plan_id="abc123", selected_indices=[99, 100])
+
+            assert not result["success"]
+            assert result["error"] == "invalid_indices"
