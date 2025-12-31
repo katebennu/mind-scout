@@ -43,23 +43,47 @@ Usage:
     - "I want to learn about RLHF" (triggers research planning workflow)
 """
 
+import os
 import sys
 from pathlib import Path
 from typing import Literal, Optional
 
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 
 # Add parent directory to path to import mindscout modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import time
+# Load environment variables from .env file
+load_dotenv(Path(__file__).parent.parent / ".env")
 
-from mindscout.database import Article, UserProfile, get_session
-from mindscout.fetchers.arxiv import fetch_arxiv
-from mindscout.fetchers.semanticscholar import SemanticScholarFetcher
-from mindscout.recommender import RecommendationEngine
-from mindscout.research_planner import ResearchPlannerAgent
-from mindscout.vectorstore import VectorStore
+import time  # noqa: E402
+
+from mindscout.config import get_settings  # noqa: E402
+from mindscout.database import Article, UserProfile, get_session  # noqa: E402
+from mindscout.fetchers.arxiv import fetch_arxiv  # noqa: E402
+from mindscout.fetchers.semanticscholar import SemanticScholarFetcher  # noqa: E402
+from mindscout.observability import init_phoenix  # noqa: E402
+from mindscout.recommender import RecommendationEngine  # noqa: E402
+from mindscout.research_planner import ResearchPlannerAgent  # noqa: E402
+from mindscout.vectorstore import VectorStore  # noqa: E402
+
+# Validate required environment variables
+if not os.getenv("ANTHROPIC_API_KEY"):
+    raise ValueError("ANTHROPIC_API_KEY environment variable is required")
+
+settings = get_settings()
+if not settings.phoenix_api_key and not os.getenv("PHOENIX_API_KEY"):
+    raise ValueError(
+        "Phoenix API key is required. Set MINDSCOUT_PHOENIX_API_KEY or PHOENIX_API_KEY environment variable. "
+        "Get your key from https://app.phoenix.arize.com"
+    )
+
+tracer = init_phoenix(project_name="mindscout-mcp")
+if not tracer:
+    raise RuntimeError(
+        "Failed to initialize Phoenix tracing. Check your API key and network connection."
+    )
 
 # Initialize MCP server
 mcp = FastMCP("Mind Scout")
